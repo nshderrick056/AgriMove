@@ -1,0 +1,69 @@
+/* ── Base Typography ───────────────────────────────────────── */
+body {
+  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  font-size: 16px;
+  line-height: 1.7;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── Animations ────────────────────────────────────────────── */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulseDot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.6; transform: scale(1.4); }
+}
+
+@keyframes driverMove {
+  0%   { offset-distance: 30%; }
+  100% { offset-distance: 70%; }
+}
+
+.animate-fade-in   { animation: fadeIn 0.4s ease both; }
+.animate-slide-up  { animation: slideUp 0.5s ease both; }
+.animate-slide-down{ animation: slideDown 0.3s ease both; }
+.animate-pulse-dot { animation: pulseDot 1.8s ease-in-out infinite; }
+
+/* Staggered delays for lists */
+.stagger-1 { animation-delay: 0.05s; }
+.stagger-2 { animation-delay: 0.10s; }
+.stagger-3 { animation-delay: 0.15s; }
+.stagger-4 { animation-delay: 0.20s; }
+
+/* ── Scrollbar ─────────────────────────────────────────────── */
+::-webkit-scrollbar        { width: 5px; height: 5px; }
+::-webkit-scrollbar-track  { background: #f8fdf8; }
+::-webkit-scrollbar-thumb  { background: #A0D683; border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: #72BF78; }
+
+/* ── Focus visible ─────────────────────────────────────────── */
+:focus-visible {
+  outline: 2px solid #72BF78;
+  outline-offset: 2px;
+}
+
+/* ── Smooth scroll ─────────────────────────────────────────── */
+html { scroll-behavior: smooth; }
+
+/* ── Transition defaults for interactive elements ──────────── */
+a, button { transition-property: color, background-color, border-color, opacity, transform; transition-duration: 150ms; transition-timing-function: ease; }
+
+/* ── Map SVG driver dot animation ─────────────────────────── */
+.driver-dot {
+  animation: pulseDot 2s ease-in-out infinite;
+  transform-origin: center;
+}
