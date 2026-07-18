@@ -6,8 +6,8 @@ import { useApp } from "../context/AppContext";
 import type { LoginTab, Page } from "../data/mockData";
 
 export function LoginPage() {
-  const { setPage, goToLogin } = useApp();
-  const [tab, setTab] = useState<LoginTab>("login");
+  const { setPage, loginTab } = useApp();
+  const [tab, setTab] = useState<LoginTab>(loginTab);
   const [showPass, setShowPass] = useState(false);
   const [role, setRole] = useState("Farmer");
 
@@ -78,28 +78,7 @@ export function LoginPage() {
                 </a>
               </div>
               <Btn variant="primary" fullWidth onClick={handleSubmit}>Log in</Btn>
-              <div className="flex items-center gap-2">
-                <hr className="flex-1 border-[#e0e0e0]" />
-                <span className="text-xs text-[#999]">or</span>
-                <hr className="flex-1 border-[#e0e0e0]" />
-              </div>
-              {/* Quick demo links */}
-              <div className="text-center text-xs text-[#666] space-y-2">
-                <p className="text-[#aaa]">Jump to a demo dashboard:</p>
-                <div className="flex flex-wrap gap-2 justify-center">
-                  {([ ["farmer","Farmer"], ["driver","Driver"], ["buyer","Buyer"], ["admin","Admin"] ] as [Page, string][]).map(
-                    ([p, label]) => (
-                      <button
-                        key={p}
-                        onClick={() => setPage(p)}
-                        className="text-[#3a7a3e] underline hover:no-underline text-xs px-2 py-0.5 rounded hover:bg-[#f0faf0] transition-colors"
-                      >
-                        {label}
-                      </button>
-                    )
-                  )}
-                </div>
-              </div>
+
             </div>
           ) : (
             <div className="space-y-4">
