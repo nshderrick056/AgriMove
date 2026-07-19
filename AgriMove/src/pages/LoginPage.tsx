@@ -10,12 +10,50 @@ export function LoginPage() {
   const [tab, setTab] = useState<LoginTab>(loginTab);
   const [showPass, setShowPass] = useState(false);
   const [role, setRole] = useState("Farmer");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [fullName, setFullName] = useState("");
+  const [errorMsg, setErrorMsg] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = () => {
-    if (tab === "login") { setPage("farmer"); return; }
-    if (role === "Farmer")      setPage("farmer");
-    else if (role === "Transporter") setPage("driver");
-    else setPage("buyer");
+  const handleSubmit = async () => {
+    setErrorMsg("");
+    setLoading(true);
+
+    try {
+      const endpoint = tab === "login" ? "/api/auth/login" : "/api/auth/signup";
+      const payload = tab === "login" 
+        ? { email, password }
+        : { email, password, fullName, role: role.toUpperCase() };
+
+      const res = await fetch(`http://localhost:5000${endpoint}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setErrorMsg(data.error || "Authentication failed");
+        setLoading(false);
+        return;
+      }
+
+      // Success, store token and redirect
+      localStorage.setItem("agrimove_token", data.token);
+      
+      const userRole = data.user.role;
+      if (userRole === "FARMER") setPage("farmer");
+      else if (userRole === "TRANSPORTER") setPage("driver");
+      else if (userRole === "BUYER") setPage("buyer");
+      else if (userRole === "ADMIN") setPage("admin");
+      
+    } catch (err) {
+      setErrorMsg("Network error. Is the backend running?");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -53,7 +91,13 @@ export function LoginPage() {
 
           {tab === "login" ? (
             <div className="space-y-4">
-              <Input label="Email or phone number" placeholder="jean@example.com" />
+              {errorMsg && <div className="text-xs text-red-600 bg-red-50 p-2 rounded">{errorMsg}</div>}
+              <Input 
+                label="Email or phone number" 
+                placeholder="jean@example.com" 
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
               {/* Password with show/hide */}
               <div className="flex flex-col gap-1">
                 <label htmlFor="password" className="text-xs text-[#666]">Password</label>
@@ -62,6 +106,8 @@ export function LoginPage() {
                     id="password"
                     type={showPass ? "text" : "password"}
                     placeholder="••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
                     className="w-full h-10 px-3 pr-10 rounded-lg border border-[#D3EE98] focus:outline-none focus:border-[#72BF78] focus:ring-1 focus:ring-[#72BF78]/30 text-sm bg-white"
                   />
                   <button
@@ -77,19 +123,34 @@ export function LoginPage() {
                   Forgot password?
                 </a>
               </div>
-              <Btn variant="primary" fullWidth onClick={handleSubmit}>Log in</Btn>
+              <Btn variant="primary" fullWidth onClick={handleSubmit} disabled={loading}>
+                {loading ? "Please wait..." : "Log in"}
+              </Btn>
 
             </div>
           ) : (
             <div className="space-y-4">
-              <Input label="Full name" placeholder="Jean-Pierre Habimana" />
-              <Input label="Email or phone number" placeholder="jean@example.com" />
+              {errorMsg && <div className="text-xs text-red-600 bg-red-50 p-2 rounded">{errorMsg}</div>}
+              <Input 
+                label="Full name" 
+                placeholder="Jean-Pierre Habimana" 
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+              />
+              <Input 
+                label="Email or phone number" 
+                placeholder="jean@example.com" 
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
               <div className="flex flex-col gap-1">
                 <label htmlFor="new-password" className="text-xs text-[#666]">Password</label>
                 <input
                   id="new-password"
                   type="password"
                   placeholder="Create a password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                   className="h-10 px-3 rounded-lg border border-[#D3EE98] focus:outline-none focus:border-[#72BF78] focus:ring-1 focus:ring-[#72BF78]/30 text-sm bg-white"
                 />
               </div>
@@ -106,7 +167,9 @@ export function LoginPage() {
                   <option>Buyer</option>
                 </select>
               </div>
-              <Btn variant="primary" fullWidth onClick={handleSubmit}>Create account</Btn>
+              <Btn variant="primary" fullWidth onClick={handleSubmit} disabled={loading}>
+                {loading ? "Please wait..." : "Create account"}
+              </Btn>
               <p className="text-center text-[10px] text-[#999]">
                 By creating an account you agree to our{" "}
                 <a href="#" className="underline">Terms of service</a> and{" "}
