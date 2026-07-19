@@ -8,6 +8,7 @@ import type { LoginTab, Page } from "../data/mockData";
 export function LoginPage() {
   const { setPage, loginTab } = useApp();
   const [tab, setTab] = useState<LoginTab>(loginTab);
+  const [showForgot, setShowForgot] = useState(false);
   const [showPass, setShowPass] = useState(false);
   const [role, setRole] = useState("Farmer");
   const [email, setEmail] = useState("");
@@ -72,8 +73,40 @@ export function LoginPage() {
           className="bg-white rounded-2xl p-6 border border-[#D3EE98]/50"
           style={{ boxShadow: "0 8px 32px rgba(0,0,0,0.08)" }}
         >
-          {/* Tabs */}
-          <div className="flex mb-6 border-b border-[#e0e0e0]">
+          {showForgot ? (
+            <div className="space-y-4">
+              <h3 className="text-lg font-medium text-[#333]">Reset your password</h3>
+              <p className="text-sm text-[#666]">Enter your email address and we'll send you a link to reset your password.</p>
+              {errorMsg && <div className="text-xs text-red-600 bg-red-50 p-2 rounded">{errorMsg}</div>}
+              <Input 
+                label="Email address" 
+                placeholder="jean@example.com" 
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+              <Btn variant="primary" fullWidth onClick={async () => {
+                setErrorMsg("");
+                setLoading(true);
+                // Replace with actual API call later
+                setTimeout(() => { 
+                  setLoading(false); 
+                  setErrorMsg("If an account exists, a reset link was sent!"); 
+                }, 1000);
+              }} disabled={loading}>
+                {loading ? "Please wait..." : "Send reset link"}
+              </Btn>
+              <button
+                type="button"
+                onClick={() => { setShowForgot(false); setErrorMsg(""); }}
+                className="w-full text-center text-sm text-[#72BF78] hover:underline mt-2"
+              >
+                Back to login
+              </button>
+            </div>
+          ) : (
+            <>
+              {/* Tabs */}
+              <div className="flex mb-6 border-b border-[#e0e0e0]">
             {(["login", "signup"] as LoginTab[]).map((t) => (
               <button
                 key={t}
@@ -119,9 +152,13 @@ export function LoginPage() {
                     {showPass ? <EyeOff size={15} /> : <Eye size={15} />}
                   </button>
                 </div>
-                <a href="#" className="text-xs text-[#72BF78] self-end mt-0.5 hover:underline">
+                <button 
+                  type="button"
+                  onClick={() => { setShowForgot(true); setErrorMsg(""); }}
+                  className="text-xs text-[#72BF78] self-end mt-0.5 hover:underline bg-transparent border-none p-0 cursor-pointer"
+                >
                   Forgot password?
-                </a>
+                </button>
               </div>
               <Btn variant="primary" fullWidth onClick={handleSubmit} disabled={loading}>
                 {loading ? "Please wait..." : "Log in"}
@@ -176,6 +213,8 @@ export function LoginPage() {
                 <a href="#" className="underline">Privacy policy</a>.
               </p>
             </div>
+          )}
+          </>
           )}
         </div>
 
