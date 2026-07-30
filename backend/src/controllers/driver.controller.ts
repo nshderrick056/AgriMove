@@ -277,9 +277,55 @@ export const updateStatus = async (req: Request, res: Response): Promise<void> =
       data: { userId: delivery.farmerId, message: notifMsg, type: newStatus === 'DELIVERED' ? 'success' : 'info' },
     });
 
+    // Send email notification to farmer
+    const farmerUser = await prisma.user.findUnique({ where: { id: delivery.farmerId }, select: { email: true } });
+    if (farmerUser?.email) {
+      try {
+        const { sendDeliveryStatusEmail } = await import('../lib/email.service');
+        sendDeliveryStatusEmail(farmerUser.email, delivery.id, delivery.cargo, newStatus).catch(() => {});
+      } catch {}
+    }
+
     res.json({ message: 'Status updated', delivery: updated });
   } catch (err) {
     console.error('updateStatus error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+/**
+ * POST /api/driver/deliveries/:id/proof
+ * Uploads delivery proof image for an assigned job.
+ */
+export const uploadProofImage = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const driverId = req.user!.id;
+    const id = req.params.id as string;
+    const file = req.file;
+
+    if (!file) {
+      res.status(400).json({ error: 'No image file uploaded' });
+      return;
+    }
+
+    const delivery = await prisma.delivery.findFirst({
+      where: { id, driverId },
+    });
+    if (!delivery) {
+      res.status(404).json({ error: 'Delivery not found' });
+      return;
+    }
+
+    const proofImageUrl = `/uploads/proofs/${file.filename}`;
+
+    const updated = await prisma.delivery.update({
+      where: { id: delivery.id },
+      data: { proofImageUrl },
+    });
+
+    res.json({ message: 'Delivery proof uploaded successfully', delivery: updated, proofImageUrl });
+  } catch (err) {
+    console.error('uploadProofImage error:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 };

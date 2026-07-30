@@ -1,3 +1,6 @@
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
 import { Router } from 'express';
 import { requireAuth, requireRole } from '../middleware/auth.middleware';
 import {
@@ -7,6 +10,7 @@ import {
   rejectJob,
   getActiveDelivery,
   updateStatus,
+  uploadProofImage,
   getEarnings,
   getHistory,
   getNotifications,
@@ -16,6 +20,20 @@ import {
   createComplaint,
   getComplaints,
 } from '../controllers/driver.controller';
+
+const proofStorageDir = path.join(__dirname, '../../uploads/proofs');
+if (!fs.existsSync(proofStorageDir)) {
+  fs.mkdirSync(proofStorageDir, { recursive: true });
+}
+
+const storage = multer.diskStorage({
+  destination: (_req: any, _file: any, cb: (error: Error | null, destination: string) => void) => cb(null, proofStorageDir),
+  filename: (_req: any, file: any, cb: (error: Error | null, filename: string) => void) => {
+    const ext = path.extname(file.originalname) || '.jpg';
+    cb(null, `proof_${Date.now()}_${Math.random().toString(36).substring(2, 7)}${ext}`);
+  },
+});
+const upload = multer({ storage });
 
 const router = Router();
 
@@ -33,6 +51,7 @@ router.post('/jobs/:id/reject', rejectJob);
 // Active delivery
 router.get('/active',                  getActiveDelivery);
 router.patch('/active/:id/status',     updateStatus);
+router.post('/active/:id/proof',       upload.single('proofImage'), uploadProofImage);
 
 // Earnings
 router.get('/earnings', getEarnings);
