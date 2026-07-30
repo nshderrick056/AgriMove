@@ -98,8 +98,8 @@ export const updateUserStatus = async (req: Request, res: Response): Promise<voi
     const id = req.params.id as string;
     const { status } = req.body;
 
-    if (!['Active', 'Suspended'].includes(status)) {
-      res.status(400).json({ error: 'Status must be Active or Suspended' });
+    if (!['Active', 'Suspended', 'Pending'].includes(status)) {
+      res.status(400).json({ error: 'Status must be Active, Suspended, or Pending' });
       return;
     }
 

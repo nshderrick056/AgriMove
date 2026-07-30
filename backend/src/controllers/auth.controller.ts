@@ -21,6 +21,9 @@ export const signup = async (req: Request, res: Response): Promise<void> => {
     const salt = await bcrypt.genSalt(10);
     const passwordHash = await bcrypt.hash(password, salt);
 
+    // Driver/Transporter accounts require admin approval before becoming Active
+    const initialStatus = (role === 'TRANSPORTER' || role === 'DRIVER') ? 'Pending' : 'Active';
+
     // Create user
     const user = await prisma.user.create({
       data: {
@@ -29,6 +32,7 @@ export const signup = async (req: Request, res: Response): Promise<void> => {
         phone,
         password: passwordHash,
         role: role as Role,
+        status: initialStatus,
       },
     });
 
@@ -36,14 +40,17 @@ export const signup = async (req: Request, res: Response): Promise<void> => {
     const token = jwt.sign({ id: user.id, role: user.role }, JWT_SECRET, { expiresIn: '7d' });
 
     res.status(201).json({
-      message: 'User created successfully',
+      message: initialStatus === 'Pending' 
+        ? 'Driver account created successfully. Your account is pending admin approval.'
+        : 'User created successfully',
       token,
       user: {
         id: user.id,
         fullName: user.fullName,
         email: user.email,
         phone: user.phone,
-        role: user.role
+        role: user.role,
+        status: user.status,
       }
     });
   } catch (error) {
@@ -84,7 +91,8 @@ export const login = async (req: Request, res: Response): Promise<void> => {
         id: user.id,
         fullName: user.fullName,
         email: user.email,
-        role: user.role
+        role: user.role,
+        status: user.status,
       }
     });
   } catch (error) {
