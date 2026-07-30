@@ -9,6 +9,7 @@ interface BtnProps {
   fullWidth?: boolean;
   disabled?: boolean;
   ariaLabel?: string;
+  title?: string;
 }
 
 const variants: Record<BtnVariant, string> = {
@@ -28,6 +29,7 @@ export function Btn({
   fullWidth = false,
   disabled = false,
   ariaLabel,
+  title,
 }: BtnProps) {
   const base =
     "inline-flex items-center justify-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium transition-colors cursor-pointer select-none min-h-[36px] disabled:opacity-50 disabled:cursor-not-allowed";
@@ -37,6 +39,7 @@ export function Btn({
       onClick={onClick}
       disabled={disabled}
       aria-label={ariaLabel}
+      title={title}
       className={`${base} ${variants[variant]} ${fullWidth ? "w-full" : ""} ${className}`}
     >
       {children}

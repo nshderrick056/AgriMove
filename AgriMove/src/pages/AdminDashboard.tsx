@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Download, Loader2, AlertCircle, Navigation, CheckCircle, X } from "lucide-react";
+import { Download, Loader2, AlertCircle, Navigation, CheckCircle, X, Search } from "lucide-react";
 import { DashboardShell } from "../components/layout/DashboardShell";
 import { MetricCard } from "../components/ui/MetricCard";
 import { StatusPill } from "../components/ui/StatusPill";
@@ -93,67 +93,141 @@ function DeliveriesTable({
   };
 
   return (
-    <div className="overflow-x-auto rounded-xl border border-[#D3EE98]/60">
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="bg-[#f8fdf8] border-b border-[#D3EE98]/60">
-            {["ID", "Cargo", "Weight", "Pickup", "Destination", "Farmer", "Driver", "Status", "Actions"].map((h) => (
-              <th key={h} className="px-3 py-2.5 text-left text-[11px] text-[#666] font-medium uppercase tracking-wide whitespace-nowrap">{h}</th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row) => (
-            <tr key={row.id} className="border-b border-[#D3EE98]/30 hover:bg-[#f8fdf8]">
-              <td className="px-3 py-2.5 whitespace-nowrap">
-                {onTrackDelivery ? (
-                  <button
-                    onClick={() => onTrackDelivery(row)}
-                    className="text-[#3a7a3e] font-mono font-medium hover:underline hover:text-[#2a5c2e] cursor-pointer flex items-center gap-1 group"
-                    title="Click to track delivery"
-                  >
-                    <span>{row.id}</span>
-                    <Navigation size={11} className="opacity-0 group-hover:opacity-100 transition-opacity" />
-                  </button>
-                ) : (
-                  <span className="text-[#3a7a3e] font-medium font-mono">{row.id}</span>
-                )}
-              </td>
-              <td className="px-3 py-2.5 text-[#333] whitespace-nowrap">{row.cargo}</td>
-              <td className="px-3 py-2.5 text-[#555] whitespace-nowrap">{row.weightKg} kg</td>
-              <td className="px-3 py-2.5 text-[#555] whitespace-nowrap">{row.pickup}</td>
-              <td className="px-3 py-2.5 text-[#555] whitespace-nowrap">{row.destination}</td>
-              <td className="px-3 py-2.5 text-[#555] whitespace-nowrap">{row.farmer?.fullName ?? "—"}</td>
-              <td className="px-3 py-2.5 text-[#555] whitespace-nowrap">{row.driver?.fullName ?? "—"}</td>
-              <td className="px-3 py-2.5 whitespace-nowrap"><StatusPill status={uiStatus(row.status)} /></td>
-              <td className="px-3 py-2.5 whitespace-nowrap">
-                <div className="flex items-center gap-1.5">
-                  {row.status !== "CANCELLED" && row.status !== "DELIVERED" && onCancelDelivery && (
+    <div>
+      {/* Mobile Card View */}
+      <div className="md:hidden space-y-3">
+        {rows.length === 0 ? (
+          <div className="bg-white border border-[#D3EE98] rounded-xl p-4 text-center text-xs text-[#888]">
+            No deliveries found.
+          </div>
+        ) : (
+          rows.map((row) => (
+            <div key={row.id} className="bg-white border border-[#D3EE98] rounded-xl p-4 space-y-2.5 shadow-xs">
+              <div className="flex items-center justify-between">
+                <div>
+                  {onTrackDelivery ? (
                     <button
-                      disabled={loadingId === row.id}
-                      onClick={() => handleCancel(row.id)}
-                      className="px-2.5 py-1 bg-amber-50 border border-amber-300 text-amber-800 hover:bg-amber-100 rounded-md text-xs font-medium transition-colors disabled:opacity-50 flex items-center gap-1"
-                      title="Cancel delivery request"
+                      onClick={() => onTrackDelivery(row)}
+                      className="text-[#3a7a3e] font-mono font-medium hover:underline flex items-center gap-1 text-xs"
                     >
-                      {loadingId === row.id ? <Loader2 size={12} className="animate-spin" /> : "Cancel"}
+                      <span>{row.id}</span>
+                      <Navigation size={11} />
                     </button>
+                  ) : (
+                    <span className="text-[#3a7a3e] font-mono font-medium text-xs">{row.id}</span>
                   )}
-                  {onDeleteDelivery && (
-                    <button
-                      disabled={loadingId === row.id}
-                      onClick={() => handleDelete(row.id)}
-                      className="px-2.5 py-1 bg-red-50 border border-red-300 text-red-700 hover:bg-red-100 rounded-md text-xs font-medium transition-colors disabled:opacity-50 flex items-center gap-1"
-                      title="Delete delivery request"
-                    >
-                      {loadingId === row.id ? <Loader2 size={12} className="animate-spin" /> : "Delete"}
-                    </button>
-                  )}
+                  <h4 className="font-semibold text-sm text-[#333]">{row.cargo} ({row.weightKg} kg)</h4>
                 </div>
-              </td>
+                <StatusPill status={uiStatus(row.status)} />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 text-xs text-[#555] bg-[#f8fdf8] p-2.5 rounded-lg border border-[#D3EE98]/50">
+                <div>
+                  <span className="text-[#888] block text-[10px] uppercase font-medium">Pickup</span>
+                  <span className="truncate block font-medium text-[#333]">{row.pickup}</span>
+                </div>
+                <div>
+                  <span className="text-[#888] block text-[10px] uppercase font-medium">Destination</span>
+                  <span className="truncate block font-medium text-[#333]">{row.destination}</span>
+                </div>
+                <div>
+                  <span className="text-[#888] block text-[10px] uppercase font-medium">Farmer</span>
+                  <span className="font-medium text-[#333]">{row.farmer?.fullName ?? "—"}</span>
+                </div>
+                <div>
+                  <span className="text-[#888] block text-[10px] uppercase font-medium">Driver</span>
+                  <span className="font-medium text-[#333]">{row.driver?.fullName ?? "Unassigned"}</span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 pt-1">
+                {row.status !== "CANCELLED" && row.status !== "DELIVERED" && onCancelDelivery && (
+                  <button
+                    disabled={loadingId === row.id}
+                    onClick={() => handleCancel(row.id)}
+                    className="flex-1 py-1.5 bg-amber-50 border border-amber-300 text-amber-800 hover:bg-amber-100 rounded-md text-xs font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-1"
+                  >
+                    {loadingId === row.id ? <Loader2 size={12} className="animate-spin" /> : "Cancel"}
+                  </button>
+                )}
+                {onDeleteDelivery && (
+                  <button
+                    disabled={loadingId === row.id}
+                    onClick={() => handleDelete(row.id)}
+                    className="flex-1 py-1.5 bg-red-50 border border-red-300 text-red-700 hover:bg-red-100 rounded-md text-xs font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-1"
+                  >
+                    {loadingId === row.id ? <Loader2 size={12} className="animate-spin" /> : "Delete"}
+                  </button>
+                )}
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Desktop Table View */}
+      <div className="hidden md:block overflow-x-auto rounded-xl border border-[#D3EE98]/60">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="bg-[#f8fdf8] border-b border-[#D3EE98]/60">
+              {["ID", "Cargo", "Weight", "Pickup", "Destination", "Farmer", "Driver", "Status", "Actions"].map((h) => (
+                <th key={h} className="px-3 py-2.5 text-left text-[11px] text-[#666] font-medium uppercase tracking-wide whitespace-nowrap">{h}</th>
+              ))}
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <tr key={row.id} className="border-b border-[#D3EE98]/30 hover:bg-[#f8fdf8]">
+                <td className="px-3 py-2.5 whitespace-nowrap">
+                  {onTrackDelivery ? (
+                    <button
+                      onClick={() => onTrackDelivery(row)}
+                      className="text-[#3a7a3e] font-mono font-medium hover:underline hover:text-[#2a5c2e] cursor-pointer flex items-center gap-1 group"
+                      title="Click to track delivery"
+                    >
+                      <span>{row.id}</span>
+                      <Navigation size={11} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </button>
+                  ) : (
+                    <span className="text-[#3a7a3e] font-medium font-mono">{row.id}</span>
+                  )}
+                </td>
+                <td className="px-3 py-2.5 text-[#333] whitespace-nowrap">{row.cargo}</td>
+                <td className="px-3 py-2.5 text-[#555] whitespace-nowrap">{row.weightKg} kg</td>
+                <td className="px-3 py-2.5 text-[#555] whitespace-nowrap">{row.pickup}</td>
+                <td className="px-3 py-2.5 text-[#555] whitespace-nowrap">{row.destination}</td>
+                <td className="px-3 py-2.5 text-[#555] whitespace-nowrap">{row.farmer?.fullName ?? "—"}</td>
+                <td className="px-3 py-2.5 text-[#555] whitespace-nowrap">{row.driver?.fullName ?? "—"}</td>
+                <td className="px-3 py-2.5 whitespace-nowrap"><StatusPill status={uiStatus(row.status)} /></td>
+                <td className="px-3 py-2.5 whitespace-nowrap">
+                  <div className="flex items-center gap-1.5">
+                    {row.status !== "CANCELLED" && row.status !== "DELIVERED" && onCancelDelivery && (
+                      <button
+                        disabled={loadingId === row.id}
+                        onClick={() => handleCancel(row.id)}
+                        className="px-2.5 py-1 bg-amber-50 border border-amber-300 text-amber-800 hover:bg-amber-100 rounded-md text-xs font-medium transition-colors disabled:opacity-50 flex items-center gap-1"
+                        title="Cancel delivery request"
+                      >
+                        {loadingId === row.id ? <Loader2 size={12} className="animate-spin" /> : "Cancel"}
+                      </button>
+                    )}
+                    {onDeleteDelivery && (
+                      <button
+                        disabled={loadingId === row.id}
+                        onClick={() => handleDelete(row.id)}
+                        className="px-2.5 py-1 bg-red-50 border border-red-300 text-red-700 hover:bg-red-100 rounded-md text-xs font-medium transition-colors disabled:opacity-50 flex items-center gap-1"
+                        title="Delete delivery request"
+                      >
+                        {loadingId === row.id ? <Loader2 size={12} className="animate-spin" /> : "Delete"}
+                      </button>
+                    )}
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
@@ -317,7 +391,7 @@ function SettingsView({
     region?: string;
     currentPassword?: string;
     newPassword?: string;
-  }) => Promise<void>;
+  }) => Promise<any>;
 }) {
   const [fullName, setFullName] = useState(profile?.fullName ?? "admin");
   const [phone, setPhone] = useState(profile?.phone ?? "+250 788 000 000");
@@ -401,6 +475,8 @@ const ADMIN_SLUGS = ["overview", "users", "deliveries", "active-deliveries", "re
 export function AdminDashboard() {
   const [activeItem, setActiveItem] = useHashTab(ADMIN_SLUGS);
   const [userFilter, setUserFilter] = useState("All");
+  const [userSearchQuery, setUserSearchQuery] = useState("");
+  const [deliverySearchQuery, setDeliverySearchQuery] = useState("");
   const [updatingUserId, setUpdatingUserId] = useState<string | null>(null);
   const [trackingDelivery, setTrackingDelivery] = useState<AdminDelivery | null>(null);
 
@@ -417,17 +493,19 @@ export function AdminDashboard() {
     complaints,
     logs,
     profile,
-    toggleUserStatus,
+    setUserStatus,
     resolveComplaint,
     updateProfile,
     cancelDelivery,
     deleteDelivery,
   } = useAdminData(userFilter);
 
-  async function handleToggleStatus(userId: string, currentStatus: "Active" | "Suspended") {
+  async function handleSetStatus(userId: string, targetStatus: "Active" | "Suspended" | "Pending") {
     setUpdatingUserId(userId);
     try {
-      await toggleUserStatus(userId, currentStatus);
+      await setUserStatus(userId, targetStatus);
+    } catch (err) {
+      alert((err as Error).message);
     } finally {
       setUpdatingUserId(null);
     }
@@ -451,9 +529,47 @@ export function AdminDashboard() {
     }
   }
 
+  const filteredUsers = (users.data ?? []).filter((u) => {
+    const q = userSearchQuery.trim().toLowerCase();
+    if (!q) return true;
+    return (
+      u.fullName.toLowerCase().includes(q) ||
+      u.email.toLowerCase().includes(q) ||
+      u.role.toLowerCase().includes(q) ||
+      (u.phone && u.phone.toLowerCase().includes(q)) ||
+      (u.region && u.region.toLowerCase().includes(q))
+    );
+  });
+
+  const filteredAllDeliveries = (deliveries.data ?? []).filter((d) => {
+    const q = deliverySearchQuery.trim().toLowerCase();
+    if (!q) return true;
+    return (
+      d.id.toLowerCase().includes(q) ||
+      d.cargo.toLowerCase().includes(q) ||
+      d.pickup.toLowerCase().includes(q) ||
+      d.destination.toLowerCase().includes(q) ||
+      (d.farmer?.fullName && d.farmer.fullName.toLowerCase().includes(q)) ||
+      (d.driver?.fullName && d.driver.fullName.toLowerCase().includes(q))
+    );
+  });
+
   const activeDeliveriesList = (deliveries.data ?? []).filter((d) =>
     ["PENDING", "ASSIGNED", "EN_ROUTE"].includes(d.status)
   );
+
+  const filteredActiveDeliveries = activeDeliveriesList.filter((d) => {
+    const q = deliverySearchQuery.trim().toLowerCase();
+    if (!q) return true;
+    return (
+      d.id.toLowerCase().includes(q) ||
+      d.cargo.toLowerCase().includes(q) ||
+      d.pickup.toLowerCase().includes(q) ||
+      d.destination.toLowerCase().includes(q) ||
+      (d.farmer?.fullName && d.farmer.fullName.toLowerCase().includes(q)) ||
+      (d.driver?.fullName && d.driver.fullName.toLowerCase().includes(q))
+    );
+  });
 
   const content = () => {
     switch (activeItem) {
@@ -468,7 +584,7 @@ export function AdminDashboard() {
             ) : dashboard.error ? (
               <ErrorBanner msg={dashboard.error} />
             ) : (
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
                 <MetricCard label="Total active users" value={String(dashboard.data?.activeUsersCount ?? 0)} />
                 <MetricCard label="Deliveries today" value={String(dashboard.data?.deliveriesToday ?? 0)} />
                 <MetricCard label="System uptime" value={dashboard.data?.systemUptime ?? "99.8%"} sub="Last 30 days" />
@@ -497,19 +613,39 @@ export function AdminDashboard() {
         return (
           <>
             <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
-              <h2 className="font-medium text-[#333]">User management</h2>
-              <div className="flex gap-1">
-                {["All", "Farmer", "Driver"].map((f) => (
-                  <button
-                    key={f}
-                    onClick={() => setUserFilter(f)}
-                    className={`px-3 py-1 rounded-lg text-xs transition-colors ${
-                      userFilter === f ? "bg-[#D3EE98] text-[#3a7a3e] font-medium" : "text-[#666] hover:bg-[#f0f0f0]"
-                    }`}
-                  >
-                    {f}
-                  </button>
-                ))}
+              <div className="flex items-center gap-2">
+                <h2 className="font-medium text-[#333]">User management</h2>
+                <span className="text-xs text-[#888]">({filteredUsers.length} found)</span>
+              </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <div className="relative flex-1 min-w-[180px]">
+                  <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#888] pointer-events-none" />
+                  <input
+                    type="text"
+                    value={userSearchQuery}
+                    onChange={(e) => setUserSearchQuery(e.target.value)}
+                    placeholder="Search name, email, region..."
+                    className="w-full h-9 pl-8 pr-7 rounded-lg border border-[#D3EE98] text-xs text-[#333] bg-white focus:outline-none focus:border-[#72BF78]"
+                  />
+                  {userSearchQuery && (
+                    <button onClick={() => setUserSearchQuery("")} className="absolute right-2 top-1/2 -translate-y-1/2 text-[#999] hover:text-[#333]">
+                      <X size={12} />
+                    </button>
+                  )}
+                </div>
+                <div className="flex gap-1">
+                  {["All", "Farmer", "Driver"].map((f) => (
+                    <button
+                      key={f}
+                      onClick={() => setUserFilter(f)}
+                      className={`px-3 py-1 rounded-lg text-xs transition-colors ${
+                        userFilter === f ? "bg-[#D3EE98] text-[#3a7a3e] font-medium" : "text-[#666] hover:bg-[#f0f0f0]"
+                      }`}
+                    >
+                      {f}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
 
@@ -518,48 +654,160 @@ export function AdminDashboard() {
             ) : users.error ? (
               <ErrorBanner msg={users.error} />
             ) : (
-              <div className="overflow-x-auto rounded-xl border border-[#D3EE98]/60">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="bg-[#f8fdf8] border-b border-[#D3EE98]/60">
-                      {["Name", "Email", "Role", "Phone", "Region", "Status", "Actions"].map((h) => (
-                        <th key={h} className="px-3 py-2.5 text-left text-[11px] text-[#666] font-medium uppercase tracking-wide whitespace-nowrap">{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {users.data?.length === 0 ? (
-                      <tr>
-                        <td colSpan={7} className="px-3 py-6 text-center text-[#888] text-sm">No users found.</td>
-                      </tr>
-                    ) : (
-                      users.data?.map((u) => (
-                        <tr key={u.id} className="border-b border-[#D3EE98]/30 hover:bg-[#f8fdf8] transition-colors">
-                          <td className="px-3 py-2.5 font-medium text-[#333] whitespace-nowrap">{u.fullName}</td>
-                          <td className="px-3 py-2.5 text-[#555] whitespace-nowrap">{u.email}</td>
-                          <td className="px-3 py-2.5 text-[#555] whitespace-nowrap">{u.role}</td>
-                          <td className="px-3 py-2.5 text-[#555] whitespace-nowrap">{u.phone ?? "—"}</td>
-                          <td className="px-3 py-2.5 text-[#555] whitespace-nowrap">{u.region ?? "—"}</td>
-                          <td className="px-3 py-2.5 whitespace-nowrap">
-                            <StatusPill status={u.status === "Active" ? "Delivered" : "Cancelled"} />
-                          </td>
-                          <td className="px-3 py-2.5 whitespace-nowrap">
-                            {u.role !== "ADMIN" && (
-                              <Btn
-                                variant={u.status === "Active" ? "danger" : "primary"}
-                                className="text-xs py-0.5 px-2.5"
-                                onClick={() => handleToggleStatus(u.id, u.status)}
+              <div>
+                {/* Mobile Card View for User Management */}
+                <div className="md:hidden space-y-3">
+                  {filteredUsers.length === 0 ? (
+                    <div className="bg-white border border-[#D3EE98] rounded-xl p-4 text-center text-xs text-[#888]">
+                      No users found matching your search.
+                    </div>
+                  ) : (
+                    filteredUsers.map((u) => (
+                      <div key={u.id} className="bg-white border border-[#D3EE98] rounded-xl p-4 space-y-3 shadow-xs">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <h4 className="font-semibold text-sm text-[#333]">{u.fullName}</h4>
+                            <span className="text-xs text-[#666]">{u.email}</span>
+                          </div>
+                          <StatusPill status={u.status === "Active" ? "Delivered" : u.status === "Pending" ? "Pending" : "Cancelled"} />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2 text-xs text-[#555] bg-[#f8fdf8] p-2.5 rounded-lg border border-[#D3EE98]/50">
+                          <div>
+                            <span className="text-[#888] block text-[10px] uppercase font-medium">Role</span>
+                            <span className="font-medium text-[#3a7a3e]">{u.role}</span>
+                          </div>
+                          <div>
+                            <span className="text-[#888] block text-[10px] uppercase font-medium">Phone</span>
+                            <span>{u.phone ?? "—"}</span>
+                          </div>
+                          <div className="col-span-2">
+                            <span className="text-[#888] block text-[10px] uppercase font-medium">Region</span>
+                            <span>{u.region ?? "—"}</span>
+                          </div>
+                        </div>
+
+                        {u.role !== "ADMIN" && (
+                          <div className="flex items-center gap-2 pt-1">
+                            {u.status === "Pending" ? (
+                              <>
+                                <button
+                                  disabled={updatingUserId === u.id}
+                                  onClick={() => handleSetStatus(u.id, "Active")}
+                                  className="flex-1 py-1.5 bg-[#72BF78] text-white hover:bg-[#5fa865] rounded-md text-xs font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-1"
+                                >
+                                  {updatingUserId === u.id ? <Loader2 size={12} className="animate-spin" /> : "Approve ✓"}
+                                </button>
+                                <button
+                                  disabled={updatingUserId === u.id}
+                                  onClick={() => handleSetStatus(u.id, "Suspended")}
+                                  className="flex-1 py-1.5 bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 rounded-md text-xs font-medium transition-colors disabled:opacity-50"
+                                >
+                                  Reject
+                                </button>
+                              </>
+                            ) : (
+                              <button
                                 disabled={updatingUserId === u.id}
+                                onClick={() => handleSetStatus(u.id, u.status === "Active" ? "Suspended" : "Active")}
+                                className={`w-full py-1.5 rounded-md text-xs font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-1 ${
+                                  u.status === "Active"
+                                    ? "bg-red-50 text-red-600 border border-red-200 hover:bg-red-100"
+                                    : "bg-[#72BF78] text-white hover:bg-[#5fa865]"
+                                }`}
                               >
-                                {updatingUserId === u.id ? <Loader2 size={12} className="animate-spin" /> : u.status === "Active" ? "Suspend" : "Restore"}
-                              </Btn>
+                                {updatingUserId === u.id ? (
+                                  <Loader2 size={12} className="animate-spin" />
+                                ) : u.status === "Active" ? (
+                                  "Suspend User"
+                                ) : (
+                                  "Approve & Restore"
+                                )}
+                              </button>
                             )}
-                          </td>
+                          </div>
+                        )}
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                {/* Desktop Table View */}
+                <div className="hidden md:block overflow-x-auto rounded-xl border border-[#D3EE98]/60">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-[#f8fdf8] border-b border-[#D3EE98]/60">
+                        {["Name", "Email", "Role", "Phone", "Region", "Status", "Actions"].map((h) => (
+                          <th key={h} className="px-3 py-2.5 text-left text-[11px] text-[#666] font-medium uppercase tracking-wide whitespace-nowrap">{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredUsers.length === 0 ? (
+                        <tr>
+                          <td colSpan={7} className="px-3 py-6 text-center text-[#888] text-sm">No users found matching your search.</td>
                         </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
+                      ) : (
+                        filteredUsers.map((u) => (
+                          <tr key={u.id} className="border-b border-[#D3EE98]/30 hover:bg-[#f8fdf8] transition-colors">
+                            <td className="px-3 py-2.5 font-medium text-[#333] whitespace-nowrap">{u.fullName}</td>
+                            <td className="px-3 py-2.5 text-[#555] whitespace-nowrap">{u.email}</td>
+                            <td className="px-3 py-2.5 text-[#555] whitespace-nowrap">{u.role}</td>
+                            <td className="px-3 py-2.5 text-[#555] whitespace-nowrap">{u.phone ?? "—"}</td>
+                            <td className="px-3 py-2.5 text-[#555] whitespace-nowrap">{u.region ?? "—"}</td>
+                            <td className="px-3 py-2.5 whitespace-nowrap">
+                              <StatusPill status={u.status === "Active" ? "Delivered" : u.status === "Pending" ? "Pending" : "Cancelled"} />
+                            </td>
+                            <td className="px-3 py-2.5 whitespace-nowrap">
+                              {u.role !== "ADMIN" && (
+                                <div className="flex items-center gap-1.5">
+                                  {u.status === "Pending" ? (
+                                    <>
+                                      <button
+                                        disabled={updatingUserId === u.id}
+                                        onClick={() => handleSetStatus(u.id, "Active")}
+                                        className="px-2.5 py-1 bg-[#72BF78] text-white hover:bg-[#5fa865] rounded-md text-xs font-medium transition-colors disabled:opacity-50 flex items-center gap-1"
+                                        title="Approve driver registration"
+                                      >
+                                        {updatingUserId === u.id ? <Loader2 size={12} className="animate-spin" /> : "Approve ✓"}
+                                      </button>
+                                      <button
+                                        disabled={updatingUserId === u.id}
+                                        onClick={() => handleSetStatus(u.id, "Suspended")}
+                                        className="px-2 py-1 bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 rounded-md text-xs font-medium transition-colors disabled:opacity-50"
+                                        title="Reject/Suspend registration"
+                                      >
+                                        Reject
+                                      </button>
+                                    </>
+                                  ) : (
+                                    <button
+                                      disabled={updatingUserId === u.id}
+                                      onClick={() => handleSetStatus(u.id, u.status === "Active" ? "Suspended" : "Active")}
+                                      className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors disabled:opacity-50 flex items-center gap-1 ${
+                                        u.status === "Active"
+                                          ? "bg-red-50 text-red-600 border border-red-200 hover:bg-red-100"
+                                          : "bg-[#72BF78] text-white hover:bg-[#5fa865]"
+                                      }`}
+                                    >
+                                      {updatingUserId === u.id ? (
+                                        <Loader2 size={12} className="animate-spin" />
+                                      ) : u.status === "Active" ? (
+                                        "Suspend"
+                                      ) : (
+                                        "Approve & Restore"
+                                      )}
+                                    </button>
+                                  )}
+                                </div>
+                              )}
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             )}
           </>
@@ -569,14 +817,31 @@ export function AdminDashboard() {
       case 2:
         return (
           <>
-            <h2 className="font-medium text-[#333] mb-3">All deliveries</h2>
+            <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+              <h2 className="font-medium text-[#333]">All deliveries ({filteredAllDeliveries.length})</h2>
+              <div className="relative flex-1 max-w-xs">
+                <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#888] pointer-events-none" />
+                <input
+                  type="text"
+                  value={deliverySearchQuery}
+                  onChange={(e) => setDeliverySearchQuery(e.target.value)}
+                  placeholder="Search ID, cargo, farmer, driver..."
+                  className="w-full h-9 pl-8 pr-7 rounded-lg border border-[#D3EE98] text-xs text-[#333] bg-white focus:outline-none focus:border-[#72BF78]"
+                />
+                {deliverySearchQuery && (
+                  <button onClick={() => setDeliverySearchQuery("")} className="absolute right-2 top-1/2 -translate-y-1/2 text-[#999] hover:text-[#333]">
+                    <X size={12} />
+                  </button>
+                )}
+              </div>
+            </div>
             {deliveries.loading ? (
               <LoadingSpinner />
             ) : deliveries.error ? (
               <ErrorBanner msg={deliveries.error} />
             ) : (
               <DeliveriesTable
-                rows={deliveries.data ?? []}
+                rows={filteredAllDeliveries}
                 onTrackDelivery={setTrackingDelivery}
                 onCancelDelivery={cancelDelivery}
                 onDeleteDelivery={deleteDelivery}
@@ -589,11 +854,28 @@ export function AdminDashboard() {
       case 3:
         return (
           <>
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="font-medium text-[#333]">Active deliveries</h2>
-              <span className="text-xs text-[#3a7a3e] font-medium bg-[#edfae0] px-2.5 py-1 rounded-lg">
-                {activeDeliveriesList.length} active in system (click ID to track)
-              </span>
+            <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+              <div className="flex items-center gap-2">
+                <h2 className="font-medium text-[#333]">Active deliveries</h2>
+                <span className="text-xs text-[#3a7a3e] font-medium bg-[#edfae0] px-2.5 py-1 rounded-lg">
+                  {filteredActiveDeliveries.length} active (click ID to track)
+                </span>
+              </div>
+              <div className="relative flex-1 max-w-xs">
+                <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#888] pointer-events-none" />
+                <input
+                  type="text"
+                  value={deliverySearchQuery}
+                  onChange={(e) => setDeliverySearchQuery(e.target.value)}
+                  placeholder="Search ID, cargo, farmer, driver..."
+                  className="w-full h-9 pl-8 pr-7 rounded-lg border border-[#D3EE98] text-xs text-[#333] bg-white focus:outline-none focus:border-[#72BF78]"
+                />
+                {deliverySearchQuery && (
+                  <button onClick={() => setDeliverySearchQuery("")} className="absolute right-2 top-1/2 -translate-y-1/2 text-[#999] hover:text-[#333]">
+                    <X size={12} />
+                  </button>
+                )}
+              </div>
             </div>
             {deliveries.loading ? (
               <LoadingSpinner />
@@ -601,7 +883,7 @@ export function AdminDashboard() {
               <ErrorBanner msg={deliveries.error} />
             ) : (
               <DeliveriesTable
-                rows={activeDeliveriesList}
+                rows={filteredActiveDeliveries}
                 onTrackDelivery={setTrackingDelivery}
                 onCancelDelivery={cancelDelivery}
                 onDeleteDelivery={deleteDelivery}

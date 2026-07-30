@@ -15,8 +15,8 @@ const features = [
 export function ForFarmers() {
   const { goToLogin } = useApp();
   return (
-    <section id="for-farmers" className="py-16 bg-[#f8fdf8]">
-      <div className="max-w-[1200px] mx-auto px-4 sm:px-6 grid lg:grid-cols-2 gap-12 items-center">
+    <section id="for-farmers" className="py-16 bg-[#f8fdf8] overflow-hidden max-w-full">
+      <div className="max-w-[1200px] mx-auto px-4 sm:px-6 grid lg:grid-cols-2 gap-8 lg:gap-12 items-center min-w-0 max-w-full">
         {/* Text */}
         <div>
           <div className="inline-flex items-center gap-2 bg-[#D3EE98] rounded-full px-3 py-1 mb-4">
@@ -43,17 +43,19 @@ export function ForFarmers() {
         </div>
 
         {/* Preview card */}
-        <div className="bg-white border border-[#D3EE98] rounded-2xl p-5 space-y-3">
+        <div className="bg-white border border-[#D3EE98] rounded-2xl p-4 sm:p-5 space-y-3 min-w-0 max-w-full overflow-hidden shadow-xs">
           <p className="text-xs text-[#888] font-medium uppercase tracking-wide">Farmer snapshot</p>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
             {[{ l: "Active deliveries", v: "3" }, { l: "This month", v: "18" }, { l: "Savings", v: "RWF 42k" }].map((m) => (
-              <div key={m.l} className="bg-[#f8fdf8] border border-[#D3EE98]/60 rounded-lg p-3 text-center">
-                <p className="text-lg font-medium text-[#3a7a3e]">{m.v}</p>
+              <div key={m.l} className="bg-[#f8fdf8] border border-[#D3EE98]/60 rounded-lg p-2.5 sm:p-3 text-center">
+                <p className="text-base sm:text-lg font-medium text-[#3a7a3e]">{m.v}</p>
                 <p className="text-[9px] text-[#888] leading-tight">{m.l}</p>
               </div>
             ))}
           </div>
-          <DeliveriesTable rows={deliveries.slice(0, 3)} showActions={false} />
+          <div className="w-full max-w-full min-w-0 overflow-x-auto">
+            <DeliveriesTable rows={deliveries.slice(0, 3)} showActions={false} />
+          </div>
         </div>
       </div>
     </section>

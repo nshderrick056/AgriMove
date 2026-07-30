@@ -96,6 +96,7 @@ export interface DriverProfile {
   phone: string | null;
   region: string | null;
   role: string;
+  status?: string;
 }
 
 export interface UpdateDriverProfilePayload {

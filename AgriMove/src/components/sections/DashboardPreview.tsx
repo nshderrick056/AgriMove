@@ -87,8 +87,20 @@ export function DashboardPreview() {
                 ))}
               </div>
 
-              {/* Table */}
-              <div className="rounded-lg border border-[#D3EE98]/60 overflow-hidden">
+              {/* Table / Mobile Cards */}
+              <div className="sm:hidden space-y-1.5">
+                {tableRows.map((row) => (
+                  <div key={row.id} className="bg-[#f8fdf8] border border-[#D3EE98]/60 rounded-lg p-2 flex items-center justify-between text-[9px]">
+                    <div>
+                      <span className="font-mono text-[#3a7a3e] font-medium block">{row.id}</span>
+                      <span className="font-semibold text-[#333]">{row.cargo} → {row.dest}</span>
+                    </div>
+                    <StatusPill status={row.status} />
+                  </div>
+                ))}
+              </div>
+
+              <div className="hidden sm:block rounded-lg border border-[#D3EE98]/60 overflow-hidden">
                 <div className="bg-[#f8fdf8] border-b border-[#D3EE98]/60 px-2 py-1.5 grid grid-cols-5 gap-2">
                   {["ID", "Cargo", "Destination", "Driver", "Status"].map((h) => (
                     <span key={h} className="text-[8px] text-[#888] uppercase tracking-wide font-medium">{h}</span>

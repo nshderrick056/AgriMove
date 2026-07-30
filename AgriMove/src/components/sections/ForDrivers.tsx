@@ -18,14 +18,14 @@ const sampleJobs = [
 export function ForDrivers() {
   const { goToLogin } = useApp();
   return (
-    <section id="for-drivers" className="py-16 bg-white">
-      <div className="max-w-[1200px] mx-auto px-4 sm:px-6 grid lg:grid-cols-2 gap-12 items-center">
+    <section id="for-drivers" className="py-16 bg-white overflow-hidden max-w-full">
+      <div className="max-w-[1200px] mx-auto px-4 sm:px-6 grid lg:grid-cols-2 gap-8 lg:gap-12 items-center min-w-0 max-w-full">
         {/* Preview card */}
-        <div className="bg-white border border-[#D3EE98] rounded-2xl p-5 space-y-3 order-2 lg:order-1">
+        <div className="bg-white border border-[#D3EE98] rounded-2xl p-4 sm:p-5 space-y-3 order-2 lg:order-1 min-w-0 max-w-full overflow-hidden shadow-xs">
           <p className="text-xs text-[#888] font-medium uppercase tracking-wide">Driver snapshot</p>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
             {[{ l: "Today's earnings", v: "RWF 24k" }, { l: "This week", v: "7 jobs" }, { l: "Rating", v: "4.8★" }].map((m) => (
-              <div key={m.l} className="bg-[#f8fdf8] border border-[#D3EE98]/60 rounded-lg p-3 text-center">
+              <div key={m.l} className="bg-[#f8fdf8] border border-[#D3EE98]/60 rounded-lg p-2.5 sm:p-3 text-center">
                 <p className="text-sm font-medium text-[#3a7a3e]">{m.v}</p>
                 <p className="text-[9px] text-[#888] leading-tight">{m.l}</p>
               </div>

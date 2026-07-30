@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useCallback } from "react";
-import type { Language, LoginTab, Page } from "../data/mockData";
+import type { LoginTab, Page } from "../data/mockData";
 
 // ── Auth types ────────────────────────────────────────────────────────────────
 export interface AuthUser {
@@ -7,6 +7,7 @@ export interface AuthUser {
   fullName: string;
   email: string;
   role: "FARMER" | "TRANSPORTER" | "ADMIN";
+  status?: string;
 }
 
 // ── Context type ──────────────────────────────────────────────────────────────
@@ -22,10 +23,6 @@ interface AppContextType {
   user: AuthUser | null;
   login: (token: string, user: AuthUser) => void;
   logout: () => void;
-
-  // Language
-  language: Language;
-  setLanguage: (l: Language) => void;
 }
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -44,7 +41,6 @@ function getInitialPage(u: AuthUser | null): Page {
 // ── Provider ──────────────────────────────────────────────────────────────────
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [loginTab, setLoginTab] = useState<LoginTab>("login");
-  const [language, setLanguage] = useState<Language>("en");
 
   // Restore token/user from localStorage on first mount
   const [token, setToken] = useState<string | null>(
@@ -72,6 +68,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setToken(newToken);
     setUser(newUser);
 
+    // Reset URL hash so user lands on main Dashboard tab (index 0) upon login
+    if (window.location.hash) {
+      try {
+        history.replaceState("", document.title, window.location.pathname + window.location.search);
+      } catch {
+        window.location.hash = "";
+      }
+    }
+
     // Route to the correct dashboard based on role
     const rolePageMap: Record<string, Page> = {
       FARMER: "farmer",
@@ -86,6 +91,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem("agrimove_user");
     setToken(null);
     setUser(null);
+
+    // Reset URL hash upon logout
+    if (window.location.hash) {
+      try {
+        history.replaceState("", document.title, window.location.pathname + window.location.search);
+      } catch {
+        window.location.hash = "";
+      }
+    }
+
     setPage("landing");
   }, []);
 
@@ -100,8 +115,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         user,
         login,
         logout,
-        language,
-        setLanguage,
       }}
     >
       {children}

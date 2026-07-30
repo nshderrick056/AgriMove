@@ -53,7 +53,7 @@ export interface AdminUser {
   phone: string | null;
   region: string | null;
   role: 'FARMER' | 'TRANSPORTER' | 'ADMIN';
-  status: 'Active' | 'Suspended';
+  status: 'Active' | 'Suspended' | 'Pending';
   createdAt: string;
 }
 
@@ -112,7 +112,7 @@ export const adminApi = {
     return apiFetch(`/admin/users${qs}`);
   },
 
-  updateUserStatus(id: string, status: 'Active' | 'Suspended'): Promise<{ message: string; user: AdminUser }> {
+  updateUserStatus(id: string, status: 'Active' | 'Suspended' | 'Pending'): Promise<{ message: string; user: AdminUser }> {
     return apiFetch(`/admin/users/${id}/status`, {
       method: 'PATCH',
       body: JSON.stringify({ status }),

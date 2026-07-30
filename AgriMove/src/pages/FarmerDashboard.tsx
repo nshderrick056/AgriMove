@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { CheckCircle, Plus, Filter, Phone, X, Loader2, AlertCircle, Package, Route } from "lucide-react";
+import { CheckCircle, Plus, Filter, Phone, X, Loader2, AlertCircle, Package, Route, Search } from "lucide-react";
 import { DashboardShell } from "../components/layout/DashboardShell";
 import { MetricCard } from "../components/ui/MetricCard";
 import { NotifBanner } from "../components/ui/NotifBanner";
@@ -411,6 +411,7 @@ const FARMER_SLUGS = ["dashboard", "deliveries", "track", "complaints", "history
 export function FarmerDashboard() {
   const [activeItem, setActiveItem] = useHashTab(FARMER_SLUGS);
   const [statusFilter, setStatusFilter] = useState("ALL");
+  const [searchQuery, setSearchQuery] = useState("");
 
   const [showModal, setShowModal] = useState(false);
   const [cargo, setCargo] = useState("");
@@ -431,6 +432,18 @@ export function FarmerDashboard() {
     updateProfile,
     createComplaint,
   } = useFarmerData(statusFilter);
+
+  const filteredDeliveries = (deliveries.data ?? []).filter((d) => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return true;
+    return (
+      d.id.toLowerCase().includes(q) ||
+      d.cargo.toLowerCase().includes(q) ||
+      d.pickup.toLowerCase().includes(q) ||
+      d.destination.toLowerCase().includes(q) ||
+      (d.driver?.fullName && d.driver.fullName.toLowerCase().includes(q))
+    );
+  });
 
   const handleCreateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -453,6 +466,18 @@ export function FarmerDashboard() {
       setSubmitting(false);
     }
   };
+
+  const filteredHistory = (history.data ?? []).filter((d) => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return true;
+    return (
+      d.id.toLowerCase().includes(q) ||
+      d.cargo.toLowerCase().includes(q) ||
+      d.pickup.toLowerCase().includes(q) ||
+      d.destination.toLowerCase().includes(q) ||
+      (d.driver?.fullName && d.driver.fullName.toLowerCase().includes(q))
+    );
+  });
 
   const content = () => {
     switch (activeItem) {
@@ -478,7 +503,7 @@ export function FarmerDashboard() {
             ) : dashboard.error ? (
               <ErrorMsg msg={dashboard.error} />
             ) : (
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
                 <MetricCard label="Active deliveries"    value={String(dashboard.data?.activeCount ?? 0)} sub="In transit / pending" />
                 <MetricCard label="Delivered this month" value={String(dashboard.data?.deliveredThisMonthCount ?? 0)} />
                 <MetricCard label="Total spent"          value={formatCost(dashboard.data?.totalSpent ?? 0, "RWF")} />
@@ -486,8 +511,23 @@ export function FarmerDashboard() {
               </div>
             )}
 
-            <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
               <h2 className="font-medium text-[#333]">Recent deliveries</h2>
+              <div className="relative flex-1 max-w-xs">
+                <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#888] pointer-events-none" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search recent deliveries..."
+                  className="w-full h-9 pl-8 pr-7 rounded-lg border border-[#D3EE98] text-xs text-[#333] bg-white focus:outline-none focus:border-[#72BF78]"
+                />
+                {searchQuery && (
+                  <button onClick={() => setSearchQuery("")} className="absolute right-2 top-1/2 -translate-y-1/2 text-[#999] hover:text-[#333]">
+                    <X size={12} />
+                  </button>
+                )}
+              </div>
             </div>
 
             {deliveries.loading ? (
@@ -496,7 +536,7 @@ export function FarmerDashboard() {
               <ErrorMsg msg={deliveries.error} />
             ) : (
               <DeliveriesTable
-                rows={deliveries.data?.slice(0, 5) ?? []}
+                rows={filteredDeliveries.slice(0, 5)}
                 onCancel={cancelDelivery}
               />
             )}
@@ -510,10 +550,30 @@ export function FarmerDashboard() {
               <div className="flex items-center gap-2">
                 <h2 className="font-medium text-[#333]">My deliveries</h2>
                 <span className="text-xs text-[#888]">
-                  ({deliveries.data?.length ?? 0} total)
+                  ({filteredDeliveries.length} found)
                 </span>
               </div>
-              <div className="flex gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
+                {/* Search input bar */}
+                <div className="relative flex-1 min-w-[180px]">
+                  <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#888] pointer-events-none" />
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search ID, cargo, destination..."
+                    className="w-full h-9 pl-8 pr-7 rounded-lg border border-[#D3EE98] text-xs text-[#333] bg-white focus:outline-none focus:border-[#72BF78]"
+                  />
+                  {searchQuery && (
+                    <button
+                      onClick={() => setSearchQuery("")}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-[#999] hover:text-[#333]"
+                    >
+                      <X size={12} />
+                    </button>
+                  )}
+                </div>
+
                 <Btn variant="primary" onClick={() => setShowModal(true)}>
                   <Plus size={15} /> New request
                 </Btn>
@@ -541,7 +601,7 @@ export function FarmerDashboard() {
               <ErrorMsg msg={deliveries.error} />
             ) : (
               <DeliveriesTable
-                rows={deliveries.data ?? []}
+                rows={filteredDeliveries}
                 onCancel={cancelDelivery}
               />
             )}
@@ -702,42 +762,98 @@ function DeliveriesTable({
   };
 
   return (
-    <div className="overflow-x-auto rounded-xl border border-[#D3EE98]/60">
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="bg-[#f8fdf8] border-b border-[#D3EE98]/60">
-            {["ID", "Produce", "Weight", "Pickup", "Destination", "Est. Cost", "Driver", "Status", "Actions"].map((h) => (
-              <th key={h} className="px-3 py-2.5 text-left text-[11px] text-[#666] font-medium uppercase tracking-wide whitespace-nowrap">{h}</th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row) => (
-            <tr key={row.id} className="border-b border-[#D3EE98]/30 hover:bg-[#f8fdf8] transition-colors">
-              <td className="px-3 py-2.5 text-[#3a7a3e] font-medium whitespace-nowrap">{row.id}</td>
-              <td className="px-3 py-2.5 text-[#333] whitespace-nowrap">{row.cargo}</td>
-              <td className="px-3 py-2.5 text-[#555] whitespace-nowrap">{formatWeight(row.weightKg)}</td>
-              <td className="px-3 py-2.5 text-[#555] whitespace-nowrap">{row.pickup}</td>
-              <td className="px-3 py-2.5 text-[#555] whitespace-nowrap">{row.destination}</td>
-              <td className="px-3 py-2.5 text-[#555] font-medium whitespace-nowrap">{formatCost(row.totalCost, row.currency)}</td>
-              <td className="px-3 py-2.5 text-[#555] whitespace-nowrap">{row.driver?.fullName ?? "—"}</td>
-              <td className="px-3 py-2.5 whitespace-nowrap"><StatusPill status={uiStatus(row.status)} /></td>
-              <td className="px-3 py-2.5 whitespace-nowrap">
-                {row.status === "PENDING" && onCancel && (
+    <div>
+      {/* Mobile Card View */}
+      <div className="md:hidden space-y-3">
+        {rows.length === 0 ? (
+          <div className="bg-white border border-[#D3EE98] rounded-xl p-4 text-center text-xs text-[#888]">
+            No deliveries found.
+          </div>
+        ) : (
+          rows.map((row) => (
+            <div key={row.id} className="bg-white border border-[#D3EE98] rounded-xl p-4 space-y-2.5 shadow-xs">
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="text-xs font-mono font-medium text-[#3a7a3e]">{row.id}</span>
+                  <h4 className="font-semibold text-sm text-[#333]">{row.cargo} ({formatWeight(row.weightKg)})</h4>
+                </div>
+                <StatusPill status={uiStatus(row.status)} />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 text-xs text-[#555] bg-[#f8fdf8] p-2.5 rounded-lg border border-[#D3EE98]/50">
+                <div>
+                  <span className="text-[#888] block text-[10px] uppercase font-medium">Pickup</span>
+                  <span className="truncate block font-medium text-[#333]">{row.pickup}</span>
+                </div>
+                <div>
+                  <span className="text-[#888] block text-[10px] uppercase font-medium">Destination</span>
+                  <span className="truncate block font-medium text-[#333]">{row.destination}</span>
+                </div>
+                <div>
+                  <span className="text-[#888] block text-[10px] uppercase font-medium">Est. Cost</span>
+                  <span className="font-semibold text-[#3a7a3e]">{formatCost(row.totalCost, row.currency)}</span>
+                </div>
+                <div>
+                  <span className="text-[#888] block text-[10px] uppercase font-medium">Driver</span>
+                  <span className="font-medium text-[#333]">{row.driver?.fullName ?? "Not assigned"}</span>
+                </div>
+              </div>
+
+              {row.status === "PENDING" && onCancel && (
+                <div className="pt-1">
                   <Btn
                     variant="ghost"
-                    className="text-xs text-red-600 hover:text-red-700 py-1 px-2"
+                    className="w-full text-xs text-red-600 hover:text-red-700 py-1.5 border border-red-200 bg-red-50/50"
                     onClick={() => handleCancelClick(row.id)}
                     disabled={cancellingId === row.id}
                   >
-                    {cancellingId === row.id ? <Loader2 size={12} className="animate-spin" /> : "Cancel"}
+                    {cancellingId === row.id ? <Loader2 size={12} className="animate-spin" /> : "Cancel Request"}
                   </Btn>
-                )}
-              </td>
+                </div>
+              )}
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Desktop Table View */}
+      <div className="hidden md:block overflow-x-auto rounded-xl border border-[#D3EE98]/60">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="bg-[#f8fdf8] border-b border-[#D3EE98]/60">
+              {["ID", "Produce", "Weight", "Pickup", "Destination", "Est. Cost", "Driver", "Status", "Actions"].map((h) => (
+                <th key={h} className="px-3 py-2.5 text-left text-[11px] text-[#666] font-medium uppercase tracking-wide whitespace-nowrap">{h}</th>
+              ))}
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <tr key={row.id} className="border-b border-[#D3EE98]/30 hover:bg-[#f8fdf8] transition-colors">
+                <td className="px-3 py-2.5 text-[#3a7a3e] font-medium whitespace-nowrap">{row.id}</td>
+                <td className="px-3 py-2.5 text-[#333] whitespace-nowrap">{row.cargo}</td>
+                <td className="px-3 py-2.5 text-[#555] whitespace-nowrap">{formatWeight(row.weightKg)}</td>
+                <td className="px-3 py-2.5 text-[#555] whitespace-nowrap">{row.pickup}</td>
+                <td className="px-3 py-2.5 text-[#555] whitespace-nowrap">{row.destination}</td>
+                <td className="px-3 py-2.5 text-[#555] font-medium whitespace-nowrap">{formatCost(row.totalCost, row.currency)}</td>
+                <td className="px-3 py-2.5 text-[#555] whitespace-nowrap">{row.driver?.fullName ?? "—"}</td>
+                <td className="px-3 py-2.5 whitespace-nowrap"><StatusPill status={uiStatus(row.status)} /></td>
+                <td className="px-3 py-2.5 whitespace-nowrap">
+                  {row.status === "PENDING" && onCancel && (
+                    <Btn
+                      variant="ghost"
+                      className="text-xs text-red-600 hover:text-red-700 py-1 px-2"
+                      onClick={() => handleCancelClick(row.id)}
+                      disabled={cancellingId === row.id}
+                    >
+                      {cancellingId === row.id ? <Loader2 size={12} className="animate-spin" /> : "Cancel"}
+                    </Btn>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

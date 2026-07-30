@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Truck, MapPin, ArrowRight, Filter, Phone, Navigation, Loader2, AlertCircle, CheckCircle, Package } from "lucide-react";
+import { Truck, MapPin, ArrowRight, Filter, Phone, Navigation, Loader2, AlertCircle, CheckCircle, Package, Search, X, Clock } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { DashboardShell } from "../components/layout/DashboardShell";
 import { MetricCard } from "../components/ui/MetricCard";
@@ -543,11 +543,104 @@ import { useHashTab } from "../hooks/useHashTab";
 
 const DRIVER_SLUGS = ["dashboard", "jobs", "active", "earnings", "complaints", "history", "settings"];
 
+import { useApp } from "../context/AppContext";
+
+// ── Driver Pending Approval Screen Component ──────────────────────────────────
+function DriverPendingApprovalScreen({
+  profileName,
+  profileEmail,
+  onRefresh,
+  onLogout,
+}: {
+  profileName?: string;
+  profileEmail?: string;
+  onRefresh: () => void;
+  onLogout: () => void;
+}) {
+  return (
+    <div className="min-h-screen bg-[#f8fdf8] flex flex-col justify-between p-4 sm:p-6">
+      {/* Top Bar */}
+      <header className="max-w-4xl mx-auto w-full flex items-center justify-between py-3 border-b border-[#D3EE98]">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 bg-[#3a7a3e] rounded-lg flex items-center justify-center text-white text-sm font-bold shadow-xs">
+            🚛
+          </div>
+          <span className="font-semibold text-lg text-[#3a7a3e]">AgriMove</span>
+        </div>
+        <div className="flex items-center gap-3">
+          {profileEmail && <span className="text-xs text-[#666] hidden sm:inline">{profileEmail}</span>}
+          <button
+            onClick={onLogout}
+            className="px-3 py-1.5 rounded-lg border border-[#D3EE98] text-xs text-[#333] hover:bg-[#edfae0] transition-colors"
+          >
+            Sign out
+          </button>
+        </div>
+      </header>
+
+      {/* Main Content Card */}
+      <main className="max-w-md mx-auto w-full my-auto py-8">
+        <div className="bg-white border border-[#D3EE98] rounded-2xl p-6 sm:p-8 text-center space-y-5 shadow-xl">
+          <div className="w-16 h-16 bg-amber-50 border border-amber-200 text-amber-600 rounded-full flex items-center justify-center mx-auto shadow-xs">
+            <Clock size={32} className="animate-pulse text-amber-600" />
+          </div>
+
+          <div>
+            <span className="inline-flex items-center gap-1.5 bg-amber-100/90 text-amber-800 text-xs font-semibold px-3 py-1 rounded-full border border-amber-300 mb-2">
+              <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping" />
+              Pending Admin Approval
+            </span>
+            <h2 className="text-xl font-bold text-[#333] mt-1">Driver Application Under Review</h2>
+            <p className="text-xs text-[#666] mt-2 leading-relaxed">
+              Welcome{profileName ? `, ${profileName}` : ""}! Your driver registration is currently being verified by system administration. Portal access, job assignments, and drive mode will remain locked until your application is approved.
+            </p>
+          </div>
+
+          <div className="bg-[#f8fdf8] border border-[#D3EE98] rounded-xl p-4 text-left text-xs space-y-2.5 text-[#444]">
+            <p className="font-semibold text-[#3a7a3e] uppercase tracking-wider text-[10px]">Application Status Overview</p>
+            <div className="flex items-start gap-2">
+              <span className="text-[#72BF78] font-bold mt-0.5">✓</span>
+              <span>Account Registration Submitted</span>
+            </div>
+            <div className="flex items-start gap-2">
+              <span className="text-amber-500 font-bold mt-0.5">⏳</span>
+              <span>Admin Verification & Credential Review (In Progress)</span>
+            </div>
+            <div className="flex items-start gap-2">
+              <span className="text-gray-400 font-bold mt-0.5">○</span>
+              <span>Portal & Available Jobs Activation (Pending)</span>
+            </div>
+          </div>
+
+          <div className="pt-2 space-y-2.5">
+            <Btn variant="primary" className="w-full py-2.5 text-sm font-medium" onClick={onRefresh}>
+              Refresh Application Status
+            </Btn>
+            <button
+              onClick={onLogout}
+              className="w-full text-xs text-[#666] hover:text-[#333] py-1.5 transition-colors"
+            >
+              Sign out & return to landing page
+            </button>
+          </div>
+        </div>
+      </main>
+
+      {/* Footer */}
+      <footer className="text-center text-xs text-[#888] py-2">
+        Need assistance? Contact support at <a href="mailto:support@agrimove.rw" className="text-[#3a7a3e] underline font-medium">support@agrimove.rw</a>
+      </footer>
+    </div>
+  );
+}
+
 // ── Driver Dashboard Component ─────────────────────────────────────────────────
 export function DriverDashboard() {
+  const { user, logout } = useApp();
   const [activeItem, setActiveItem] = useHashTab(DRIVER_SLUGS);
   const [driveMode, setDriveMode] = useState(false);
   const [jobFilter, setJobFilter] = useState("ALL");
+  const [jobSearchQuery, setJobSearchQuery] = useState("");
   const [earningsPeriod, setEarningsPeriod] = useState<"weekly" | "monthly">("weekly");
   const [acceptingId, setAcceptingId] = useState<string | null>(null);
 
@@ -565,7 +658,30 @@ export function DriverDashboard() {
     createComplaint,
   } = useDriverData(earningsPeriod, jobFilter === "ALL" ? undefined : jobFilter);
 
+  const isPendingDriver = user?.status === "Pending" || profile.data?.status === "Pending";
+
+  if (isPendingDriver) {
+    return (
+      <DriverPendingApprovalScreen
+        profileName={profile.data?.fullName || user?.fullName}
+        profileEmail={profile.data?.email || user?.email}
+        onRefresh={() => window.location.reload()}
+        onLogout={logout}
+      />
+    );
+  }
+
+  const hasActiveDelivery = activeDelivery.data != null && ["ASSIGNED", "EN_ROUTE"].includes(activeDelivery.data.status);
+
   const handleAcceptJob = async (id: string) => {
+    if (isPendingDriver) {
+      alert("Your account is pending admin approval. You cannot accept jobs until approved.");
+      return;
+    }
+    if (hasActiveDelivery) {
+      alert(`You already have an active delivery in progress (${activeDelivery.data?.id}). Please complete your current active delivery before accepting another job.`);
+      return;
+    }
     setAcceptingId(id);
     try {
       await acceptJob(id);
@@ -592,6 +708,18 @@ export function DriverDashboard() {
       case 0: // Overview
         return (
           <>
+            {isPendingDriver && (
+              <div className="bg-amber-50 border border-amber-300 p-4 rounded-xl mb-4 flex items-start gap-3 text-amber-900 shadow-xs animate-slide-down">
+                <AlertCircle size={20} className="text-amber-600 shrink-0 mt-0.5" />
+                <div>
+                  <h4 className="font-semibold text-sm">Driver Registration Pending Admin Approval</h4>
+                  <p className="text-xs mt-0.5 text-amber-800 leading-relaxed">
+                    Your driver account application is currently under review by system administration. You can explore the portal, but accepting jobs is locked until an administrator reviews and approves your account.
+                  </p>
+                </div>
+              </div>
+            )}
+
             {dashboard.data?.recentNotification && (
               <NotifBanner n={{ msg: dashboard.data.recentNotification.message, time: "Just now", type: "info" }} />
             )}
@@ -650,48 +778,105 @@ export function DriverDashboard() {
             )}
 
             <h2 className="font-medium text-[#333] mb-3">Available jobs nearby</h2>
+            {hasActiveDelivery && (
+              <div className="bg-amber-50 border border-amber-300 p-3.5 rounded-xl mb-4 flex items-center justify-between text-amber-900 text-xs shadow-xs">
+                <div className="flex items-center gap-2">
+                  <AlertCircle size={16} className="text-amber-600 shrink-0" />
+                  <span>
+                    You have an active delivery in progress (<strong>{activeDelivery.data?.id}</strong>). Complete it before accepting another job.
+                  </span>
+                </div>
+                <Btn variant="primary" className="text-xs py-1 px-2.5 ml-2 whitespace-nowrap" onClick={() => setDriveMode(true)}>
+                  Go to Drive Mode →
+                </Btn>
+              </div>
+            )}
             {availableJobs.loading ? (
               <LoadingSpinner />
             ) : availableJobs.error ? (
               <ErrorBanner msg={availableJobs.error} />
             ) : (
-              <JobsTable rows={availableJobs.data?.slice(0, 5) ?? []} onAccept={handleAcceptJob} acceptingId={acceptingId} />
+              <JobsTable rows={availableJobs.data?.slice(0, 5) ?? []} onAccept={handleAcceptJob} acceptingId={acceptingId} hasActiveDelivery={hasActiveDelivery} />
             )}
           </>
         );
 
       case 1: // Available jobs
-        return (
-          <>
-            <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
-              <div className="flex items-center gap-2">
-                <h2 className="font-medium text-[#333]">Available jobs</h2>
-                <span className="text-xs text-[#888]">({availableJobs.data?.length ?? 0} available)</span>
-              </div>
-              <div className="relative flex items-center">
-                <Filter size={13} className="absolute left-2.5 text-[#888] pointer-events-none" />
-                <select
-                  value={jobFilter}
-                  onChange={(e) => setJobFilter(e.target.value)}
-                  className="h-9 pl-7 pr-3 rounded-lg border border-[#D3EE98] text-xs text-[#333] bg-white focus:outline-none focus:border-[#72BF78]"
-                >
-                  <option value="ALL">All produce</option>
-                  <option value="Tomatoes">Tomatoes</option>
-                  <option value="Potatoes">Potatoes</option>
-                  <option value="Avocados">Avocados</option>
-                </select>
-              </div>
-            </div>
+        {
+          const filteredJobs = (availableJobs.data ?? []).filter((j) => {
+            const q = jobSearchQuery.trim().toLowerCase();
+            if (!q) return true;
+            return (
+              j.id.toLowerCase().includes(q) ||
+              j.cargo.toLowerCase().includes(q) ||
+              j.pickup.toLowerCase().includes(q) ||
+              j.destination.toLowerCase().includes(q) ||
+              (j.farmer?.fullName && j.farmer.fullName.toLowerCase().includes(q))
+            );
+          });
 
-            {availableJobs.loading ? (
-              <LoadingSpinner />
-            ) : availableJobs.error ? (
-              <ErrorBanner msg={availableJobs.error} />
-            ) : (
-              <JobsTable rows={availableJobs.data ?? []} onAccept={handleAcceptJob} acceptingId={acceptingId} />
-            )}
-          </>
-        );
+          return (
+            <>
+              <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+                <div className="flex items-center gap-2">
+                  <h2 className="font-medium text-[#333]">Available jobs</h2>
+                  <span className="text-xs text-[#888]">({filteredJobs.length} available)</span>
+                </div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <div className="relative flex-1 min-w-[180px]">
+                    <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#888] pointer-events-none" />
+                    <input
+                      type="text"
+                      value={jobSearchQuery}
+                      onChange={(e) => setJobSearchQuery(e.target.value)}
+                      placeholder="Search produce, route, ID..."
+                      className="w-full h-9 pl-8 pr-7 rounded-lg border border-[#D3EE98] text-xs text-[#333] bg-white focus:outline-none focus:border-[#72BF78]"
+                    />
+                    {jobSearchQuery && (
+                      <button onClick={() => setJobSearchQuery("")} className="absolute right-2 top-1/2 -translate-y-1/2 text-[#999] hover:text-[#333]">
+                        <X size={12} />
+                      </button>
+                    )}
+                  </div>
+                  <div className="relative flex items-center">
+                    <Filter size={13} className="absolute left-2.5 text-[#888] pointer-events-none" />
+                    <select
+                      value={jobFilter}
+                      onChange={(e) => setJobFilter(e.target.value)}
+                      className="h-9 pl-7 pr-3 rounded-lg border border-[#D3EE98] text-xs text-[#333] bg-white focus:outline-none focus:border-[#72BF78]"
+                    >
+                      <option value="ALL">All produce</option>
+                      <option value="Tomatoes">Tomatoes</option>
+                      <option value="Potatoes">Potatoes</option>
+                      <option value="Avocados">Avocados</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {hasActiveDelivery && (
+                <div className="bg-amber-50 border border-amber-300 p-3.5 rounded-xl mb-4 flex items-center justify-between text-amber-900 text-xs shadow-xs">
+                  <div className="flex items-center gap-2">
+                    <AlertCircle size={16} className="text-amber-600 shrink-0" />
+                    <span>
+                      You have an active delivery in progress (<strong>{activeDelivery.data?.id}</strong>). Complete it before accepting another job.
+                    </span>
+                  </div>
+                  <Btn variant="primary" className="text-xs py-1 px-2.5 ml-2 whitespace-nowrap" onClick={() => setDriveMode(true)}>
+                    Go to Drive Mode →
+                  </Btn>
+                </div>
+              )}
+              {availableJobs.loading ? (
+                <LoadingSpinner />
+              ) : availableJobs.error ? (
+                <ErrorBanner msg={availableJobs.error} />
+              ) : (
+                <JobsTable rows={filteredJobs} onAccept={handleAcceptJob} acceptingId={acceptingId} hasActiveDelivery={hasActiveDelivery} />
+              )}
+            </>
+          );
+        }
 
       case 2: // Active delivery
         return (
@@ -757,18 +942,49 @@ export function DriverDashboard() {
         return <ComplaintsView complaints={complaints.data ?? []} onCreateComplaint={createComplaint} />;
 
       case 5: // History
-        return (
-          <>
-            <h2 className="font-medium text-[#333] mb-3">Completed delivery history</h2>
-            {history.loading ? (
-              <LoadingSpinner />
-            ) : history.error ? (
-              <ErrorBanner msg={history.error} />
-            ) : (
-              <JobsTable rows={history.data ?? []} readOnly />
-            )}
-          </>
-        );
+        {
+          const filteredHistory = (history.data ?? []).filter((j) => {
+            const q = jobSearchQuery.trim().toLowerCase();
+            if (!q) return true;
+            return (
+              j.id.toLowerCase().includes(q) ||
+              j.cargo.toLowerCase().includes(q) ||
+              j.pickup.toLowerCase().includes(q) ||
+              j.destination.toLowerCase().includes(q) ||
+              (j.farmer?.fullName && j.farmer.fullName.toLowerCase().includes(q))
+            );
+          });
+
+          return (
+            <>
+              <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+                <h2 className="font-medium text-[#333]">Completed delivery history ({filteredHistory.length})</h2>
+                <div className="relative flex-1 max-w-xs">
+                  <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#888] pointer-events-none" />
+                  <input
+                    type="text"
+                    value={jobSearchQuery}
+                    onChange={(e) => setJobSearchQuery(e.target.value)}
+                    placeholder="Search history by produce, route, ID..."
+                    className="w-full h-9 pl-8 pr-7 rounded-lg border border-[#D3EE98] text-xs text-[#333] bg-white focus:outline-none focus:border-[#72BF78]"
+                  />
+                  {jobSearchQuery && (
+                    <button onClick={() => setJobSearchQuery("")} className="absolute right-2 top-1/2 -translate-y-1/2 text-[#999] hover:text-[#333]">
+                      <X size={12} />
+                    </button>
+                  )}
+                </div>
+              </div>
+              {history.loading ? (
+                <LoadingSpinner />
+              ) : history.error ? (
+                <ErrorBanner msg={history.error} />
+              ) : (
+                <JobsTable rows={filteredHistory} readOnly />
+              )}
+            </>
+          );
+        }
 
       case 6: // Settings
         return <SettingsView profile={profile.data} onSave={updateProfile} />;
@@ -791,55 +1007,121 @@ function JobsTable({
   onAccept,
   acceptingId,
   readOnly,
+  hasActiveDelivery,
 }: {
   rows: DriverJob[];
   onAccept?: (id: string) => Promise<void>;
   acceptingId?: string | null;
   readOnly?: boolean;
+  hasActiveDelivery?: boolean;
 }) {
   if (rows.length === 0) {
-    return <p className="text-sm text-[#888] py-4">No jobs found.</p>;
+    return <p className="text-sm text-[#888] py-4 text-center">No jobs found matching your criteria.</p>;
   }
 
   return (
-    <div className="overflow-x-auto rounded-xl border border-[#D3EE98]/60">
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="bg-[#f8fdf8] border-b border-[#D3EE98]/60">
-            {["ID", "Produce", "Weight", "Pickup", "Destination", "Est. Pay", "Farmer", "Status", !readOnly ? "Action" : ""].filter(Boolean).map((h) => (
-              <th key={h} className="px-3 py-2.5 text-left text-[11px] text-[#666] font-medium uppercase tracking-wide whitespace-nowrap">{h}</th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row) => (
-            <tr key={row.id} className="border-b border-[#D3EE98]/30 hover:bg-[#f8fdf8] transition-colors">
-              <td className="px-3 py-2.5 text-[#3a7a3e] font-medium whitespace-nowrap">{row.id}</td>
-              <td className="px-3 py-2.5 text-[#333] whitespace-nowrap">{row.cargo}</td>
-              <td className="px-3 py-2.5 text-[#555] whitespace-nowrap">{row.weightKg} kg</td>
-              <td className="px-3 py-2.5 text-[#555] whitespace-nowrap">{row.pickup}</td>
-              <td className="px-3 py-2.5 text-[#555] whitespace-nowrap">{row.destination}</td>
-              <td className="px-3 py-2.5 text-[#3a7a3e] font-medium whitespace-nowrap">{formatCost(row.totalCost, row.currency)}</td>
-              <td className="px-3 py-2.5 text-[#555] whitespace-nowrap">{row.farmer?.fullName ?? "—"}</td>
-              <td className="px-3 py-2.5 whitespace-nowrap"><StatusPill status={uiStatus(row.status)} /></td>
-              {!readOnly && (
-                <td className="px-3 py-2.5 whitespace-nowrap">
-                  {row.status === "PENDING" && onAccept && (
-                    <Btn
-                      variant="primary"
-                      className="text-xs py-1 px-3"
-                      onClick={() => onAccept(row.id)}
-                      disabled={acceptingId === row.id}
-                    >
-                      {acceptingId === row.id ? <Loader2 size={12} className="animate-spin" /> : "Accept job"}
-                    </Btn>
+    <div>
+      {/* Mobile Card View */}
+      <div className="md:hidden space-y-3">
+        {rows.map((row) => (
+          <div key={row.id} className="bg-white border border-[#D3EE98] rounded-xl p-4 space-y-2.5 shadow-xs">
+            <div className="flex items-center justify-between">
+              <div>
+                <span className="text-xs font-mono font-medium text-[#3a7a3e]">{row.id}</span>
+                <h4 className="font-semibold text-sm text-[#333]">{row.cargo} ({row.weightKg} kg)</h4>
+              </div>
+              <StatusPill status={uiStatus(row.status)} />
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 text-xs text-[#555] bg-[#f8fdf8] p-2.5 rounded-lg border border-[#D3EE98]/50">
+              <div>
+                <span className="text-[#888] block text-[10px] uppercase font-medium">Pickup</span>
+                <span className="truncate block font-medium text-[#333]">{row.pickup}</span>
+              </div>
+              <div>
+                <span className="text-[#888] block text-[10px] uppercase font-medium">Destination</span>
+                <span className="truncate block font-medium text-[#333]">{row.destination}</span>
+              </div>
+              <div>
+                <span className="text-[#888] block text-[10px] uppercase font-medium">Est. Pay</span>
+                <span className="font-semibold text-[#3a7a3e]">{formatCost(row.totalCost, row.currency)}</span>
+              </div>
+              <div>
+                <span className="text-[#888] block text-[10px] uppercase font-medium">Farmer</span>
+                <span className="font-medium text-[#333]">{row.farmer?.fullName ?? "—"}</span>
+              </div>
+            </div>
+
+            {!readOnly && row.status === "PENDING" && onAccept && (
+              <div className="pt-1">
+                <Btn
+                  variant={hasActiveDelivery ? "ghost" : "primary"}
+                  className={`w-full text-xs py-1.5 ${hasActiveDelivery ? "opacity-60 cursor-not-allowed bg-gray-100 border-gray-300 text-gray-500" : ""}`}
+                  onClick={() => onAccept(row.id)}
+                  disabled={acceptingId === row.id || hasActiveDelivery}
+                  title={hasActiveDelivery ? "Complete your active delivery before accepting another job" : undefined}
+                >
+                  {acceptingId === row.id ? (
+                    <Loader2 size={12} className="animate-spin" />
+                  ) : hasActiveDelivery ? (
+                    "Active Job in Progress"
+                  ) : (
+                    "Accept job"
                   )}
-                </td>
-              )}
+                </Btn>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Desktop Table View */}
+      <div className="hidden md:block overflow-x-auto rounded-xl border border-[#D3EE98]/60">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="bg-[#f8fdf8] border-b border-[#D3EE98]/60">
+              {["ID", "Produce", "Weight", "Pickup", "Destination", "Est. Pay", "Farmer", "Status", !readOnly ? "Action" : ""].filter(Boolean).map((h) => (
+                <th key={h} className="px-3 py-2.5 text-left text-[11px] text-[#666] font-medium uppercase tracking-wide whitespace-nowrap">{h}</th>
+              ))}
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <tr key={row.id} className="border-b border-[#D3EE98]/30 hover:bg-[#f8fdf8] transition-colors">
+                <td className="px-3 py-2.5 text-[#3a7a3e] font-medium whitespace-nowrap">{row.id}</td>
+                <td className="px-3 py-2.5 text-[#333] whitespace-nowrap">{row.cargo}</td>
+                <td className="px-3 py-2.5 text-[#555] whitespace-nowrap">{row.weightKg} kg</td>
+                <td className="px-3 py-2.5 text-[#555] whitespace-nowrap">{row.pickup}</td>
+                <td className="px-3 py-2.5 text-[#555] whitespace-nowrap">{row.destination}</td>
+                <td className="px-3 py-2.5 text-[#3a7a3e] font-medium whitespace-nowrap">{formatCost(row.totalCost, row.currency)}</td>
+                <td className="px-3 py-2.5 text-[#555] whitespace-nowrap">{row.farmer?.fullName ?? "—"}</td>
+                <td className="px-3 py-2.5 whitespace-nowrap"><StatusPill status={uiStatus(row.status)} /></td>
+                {!readOnly && (
+                  <td className="px-3 py-2.5 whitespace-nowrap">
+                    {row.status === "PENDING" && onAccept && (
+                      <Btn
+                        variant={hasActiveDelivery ? "ghost" : "primary"}
+                        className={`text-xs py-1 px-3 ${hasActiveDelivery ? "opacity-60 cursor-not-allowed bg-gray-100 border border-gray-300 text-gray-500" : ""}`}
+                        onClick={() => onAccept(row.id)}
+                        disabled={acceptingId === row.id || hasActiveDelivery}
+                        title={hasActiveDelivery ? "Complete your active delivery before accepting another job" : undefined}
+                      >
+                        {acceptingId === row.id ? (
+                          <Loader2 size={12} className="animate-spin" />
+                        ) : hasActiveDelivery ? (
+                          "Active Job in Progress"
+                        ) : (
+                          "Accept job"
+                        )}
+                      </Btn>
+                    )}
+                  </td>
+                )}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

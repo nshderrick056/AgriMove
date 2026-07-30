@@ -2,7 +2,6 @@
 export type Page = "landing" | "login" | "farmer" | "driver" | "admin";
 export type LoginTab = "login" | "signup";
 export type DeliveryStatus = "Pending" | "Assigned" | "En route" | "Delivered" | "Cancelled";
-export type Language = "en" | "rw" | "sw";
 
 // ── Deliveries ────────────────────────────────────────────────────────────────
 export interface Delivery {

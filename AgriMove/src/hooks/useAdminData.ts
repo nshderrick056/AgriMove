@@ -49,15 +49,22 @@ export function useAdminData(userRoleFilter?: string) {
   const logsState = useAsync<SystemLog[]>(() => adminApi.getSystemLogs(), []);
   const profileState = useAsync<AdminProfile>(() => adminApi.getProfile(), []);
 
-  const toggleUserStatus = useCallback(
-    async (id: string, currentStatus: "Active" | "Suspended"): Promise<AdminUser> => {
-      const nextStatus = currentStatus === "Active" ? "Suspended" : "Active";
-      const { user } = await adminApi.updateUserStatus(id, nextStatus);
+  const setUserStatus = useCallback(
+    async (id: string, newStatus: "Active" | "Suspended" | "Pending"): Promise<AdminUser> => {
+      const { user } = await adminApi.updateUserStatus(id, newStatus);
       usersState.refetch();
       dashboardState.refetch();
       return user;
     },
     [usersState, dashboardState]
+  );
+
+  const toggleUserStatus = useCallback(
+    async (id: string, currentStatus: "Active" | "Suspended" | "Pending"): Promise<AdminUser> => {
+      const nextStatus = currentStatus === "Active" ? "Suspended" : "Active";
+      return setUserStatus(id, nextStatus);
+    },
+    [setUserStatus]
   );
 
   const resolveComplaint = useCallback(
@@ -109,6 +116,7 @@ export function useAdminData(userRoleFilter?: string) {
     profile: profileState,
 
     toggleUserStatus,
+    setUserStatus,
     resolveComplaint,
     updateProfile,
     cancelDelivery,
