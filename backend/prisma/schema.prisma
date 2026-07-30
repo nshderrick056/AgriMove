@@ -9,12 +9,24 @@ datasource db {
   provider = "postgresql"
 }
 
+
+// ── Enums ─────────────────────────────────────────────────────────────────────
+
 enum Role {
   FARMER
   TRANSPORTER
-  BUYER
   ADMIN
 }
+
+enum DeliveryStatus {
+  PENDING
+  ASSIGNED
+  EN_ROUTE
+  DELIVERED
+  CANCELLED
+}
+
+// ── Models ────────────────────────────────────────────────────────────────────
 
 model User {
   id        String   @id @default(uuid())
@@ -22,6 +34,77 @@ model User {
   email     String   @unique
   password  String
   role      Role     @default(FARMER)
+  status    String   @default("Active") // "Active" | "Suspended"
+  phone     String?
+  region    String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  // Relations
+  farmerDeliveries  Delivery[]             @relation("FarmerDeliveries")
+  driverDeliveries  Delivery[]             @relation("DriverDeliveries")
+  notifications     Notification[]
+  notifPreference   NotificationPreference?
+  complaints        Complaint[]
+}
+
+model Delivery {
+  id          String         @id @default(cuid())
+  cargo       String
+  weightKg    Float
+  pickup      String
+  destination String
+  status      DeliveryStatus @default(PENDING)
+  eta         DateTime?
+  totalCost   Float?
+  currency    String         @default("RWF")
+
+  farmerId    String
+  driverId    String?
+
+  farmer      User           @relation("FarmerDeliveries",  fields: [farmerId],  references: [id])
+  driver      User?          @relation("DriverDeliveries",  fields: [driverId],  references: [id])
+
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  message   String
+  type      String   // "success" | "info" | "warning"
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+model NotificationPreference {
+  id           String  @id @default(cuid())
+  userId       String  @unique
+  user         User    @relation(fields: [userId], references: [id])
+  emailAlerts  Boolean @default(true)
+  smsAlerts    Boolean @default(true)
+  onDispatched Boolean @default(true)
+  onEnRoute    Boolean @default(true)
+  onNearby     Boolean @default(true)
+  onDelivered  Boolean @default(true)
+}
+
+model Complaint {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  issue     String
+  priority  String   @default("Medium") // "High" | "Medium" | "Low"
+  resolved  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model SystemLog {
+  id        String   @id @default(cuid())
+  level     String   // "INFO" | "WARN" | "ERROR"
+  msg       String
+  createdAt DateTime @default(now())
 }

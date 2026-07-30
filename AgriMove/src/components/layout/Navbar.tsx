@@ -7,7 +7,6 @@ const navLinks = [
   { id: "how-it-works", label: "How it works" },
   { id: "for-farmers",  label: "For farmers" },
   { id: "for-drivers",  label: "For drivers" },
-  { id: "for-buyers",   label: "For buyers" },
   { id: "pricing",      label: "Pricing" },
 ];
 

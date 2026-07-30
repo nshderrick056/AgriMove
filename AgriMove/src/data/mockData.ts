@@ -1,5 +1,5 @@
 // ── Types ─────────────────────────────────────────────────────────────────────
-export type Page = "landing" | "login" | "farmer" | "driver" | "buyer" | "admin";
+export type Page = "landing" | "login" | "farmer" | "driver" | "admin";
 export type LoginTab = "login" | "signup";
 export type DeliveryStatus = "Pending" | "Assigned" | "En route" | "Delivered" | "Cancelled";
 export type Language = "en" | "rw" | "sw";
@@ -86,12 +86,7 @@ export const availableJobs = [
   { id: "AGR-0045", pickup: "Nyagatare Farm", destination: "Kigali Market",  cargo: "Beans",   weight: "260 kg", distance: "142 km", pay: "RWF 19,000" },
 ];
 
-// ── Buyer Incoming ────────────────────────────────────────────────────────────
-export const buyerIncoming = [
-  { id: "AGR-0041", farmer: "Jean-Pierre Habimana", cargo: "Tomatoes", qty: "480 kg", eta: "14:30 today", driver: "Samuel K.",  status: "En route"  as DeliveryStatus },
-  { id: "AGR-0038", farmer: "Claudine Mukamana",    cargo: "Cassava",  qty: "350 kg", eta: "09/07/2026",  driver: "Jean B.",    status: "Assigned"  as DeliveryStatus },
-  { id: "AGR-0040", farmer: "Eric Niyonshuti",      cargo: "Maize",    qty: "600 kg", eta: "08/07/2026",  driver: "Patrick M.", status: "Delivered" as DeliveryStatus },
-];
+
 
 // ── System Logs ───────────────────────────────────────────────────────────────
 export const systemLogs = [

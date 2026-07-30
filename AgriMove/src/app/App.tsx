@@ -3,7 +3,6 @@ import { LandingPage }    from "../pages/LandingPage";
 import { LoginPage }      from "../pages/LoginPage";
 import { FarmerDashboard } from "../pages/FarmerDashboard";
 import { DriverDashboard } from "../pages/DriverDashboard";
-import { BuyerDashboard }  from "../pages/BuyerDashboard";
 import { AdminDashboard }  from "../pages/AdminDashboard";
 
 function AppRouter() {
@@ -14,7 +13,6 @@ function AppRouter() {
     case "login":   return <LoginPage />;
     case "farmer":  return <FarmerDashboard />;
     case "driver":  return <DriverDashboard />;
-    case "buyer":   return <BuyerDashboard />;
     case "admin":   return <AdminDashboard />;
     default:        return <LandingPage />;
   }

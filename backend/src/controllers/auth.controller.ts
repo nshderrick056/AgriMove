@@ -8,7 +8,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'supersecret_fallback_key';
 
 export const signup = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { fullName, email, password, role } = req.body;
+    const { fullName, email, phone, password, role } = req.body;
 
     // Check if user exists
     const existingUser = await prisma.user.findUnique({ where: { email } });
@@ -26,6 +26,7 @@ export const signup = async (req: Request, res: Response): Promise<void> => {
       data: {
         fullName,
         email,
+        phone,
         password: passwordHash,
         role: role as Role,
       },
@@ -41,6 +42,7 @@ export const signup = async (req: Request, res: Response): Promise<void> => {
         id: user.id,
         fullName: user.fullName,
         email: user.email,
+        phone: user.phone,
         role: user.role
       }
     });
@@ -58,6 +60,10 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     const user = await prisma.user.findUnique({ where: { email } });
     if (!user) {
       res.status(400).json({ error: 'Invalid credentials' });
+      return;
+    }
+    if (user.status === 'Suspended') {
+      res.status(403).json({ error: 'Your account has been suspended. Please contact support.' });
       return;
     }
 

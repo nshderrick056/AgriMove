@@ -1,313 +1,780 @@
-import { useState } from "react";
-import { Truck, MapPin, ArrowRight, Filter, Phone, Navigation, CheckCircle } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Truck, MapPin, ArrowRight, Filter, Phone, Navigation, Loader2, AlertCircle, CheckCircle, Package } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { DashboardShell } from "../components/layout/DashboardShell";
 import { MetricCard } from "../components/ui/MetricCard";
 import { NotifBanner } from "../components/ui/NotifBanner";
 import { Btn } from "../components/ui/Btn";
 import { StatusPill } from "../components/ui/StatusPill";
-import { availableJobs, earningsData, earningsMonthlyData, historyDeliveries, notifications } from "../data/mockData";
 import { Input } from "../components/ui/Input";
+import { useDriverData } from "../hooks/useDriverData";
+import { driverApi, type DriverJob } from "../services/driverApi";
+import type { DeliveryStatus } from "../data/mockData";
+import { DeliveryMap } from "../components/ui/DeliveryMap";
 
-// ── Track Shipment (shared inline) ────────────────────────────────────────────
-function TrackShipmentView() {
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function uiStatus(s: string): DeliveryStatus {
+  const map: Record<string, DeliveryStatus> = {
+    PENDING: "Pending",
+    ASSIGNED: "Assigned",
+    EN_ROUTE: "En route",
+    DELIVERED: "Delivered",
+    CANCELLED: "Cancelled",
+  };
+  return map[s] ?? (s as DeliveryStatus);
+}
+
+function formatCost(cost: number | null, currency: string): string {
+  if (cost == null) return "—";
+  return `${currency} ${cost.toLocaleString()}`;
+}
+
+function formatDate(iso: string): string {
+  const d = new Date(iso);
+  const day = String(d.getDate()).padStart(2, "0");
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const year = d.getFullYear();
+  return `${day}/${month}/${year}`;
+}
+
+function LoadingSpinner() {
+  return (
+    <div className="flex flex-col gap-2 py-6 items-center text-[#888] text-sm">
+      <Loader2 size={20} className="animate-spin text-[#72BF78]" />
+      <span>Loading…</span>
+    </div>
+  );
+}
+
+function ErrorBanner({ msg }: { msg: string }) {
+  return (
+    <div className="flex items-center gap-2 p-3 text-[#c62828] bg-[#fdecea] rounded-lg text-sm mb-4">
+      <AlertCircle size={16} />
+      <span>{msg}</span>
+    </div>
+  );
+}
+
+// ── Track Shipment (inline tracker) ───────────────────────────────────────────
+function TrackShipmentView({
+  activeJob,
+  onUpdateStatus,
+  onEnterDriveMode,
+}: {
+  activeJob: DriverJob | null;
+  onUpdateStatus: (id: string, nextStatus: "EN_ROUTE" | "DELIVERED") => Promise<any>;
+  onEnterDriveMode?: () => void;
+}) {
+  const [trackId, setTrackId] = useState(activeJob?.id ?? "");
+  const [tracked, setTracked] = useState<DriverJob | null>(activeJob);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [actionLoading, setActionLoading] = useState(false);
+
+  async function handleTrack(targetId?: string) {
+    const idToUse = targetId || trackId.trim();
+    if (!idToUse) return;
+    setTrackId(idToUse);
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await driverApi.getActiveDelivery();
+      if (data && data.id === idToUse) {
+        setTracked(data);
+      } else {
+        setTracked(activeJob?.id === idToUse ? activeJob : null);
+        if (!activeJob || activeJob.id !== idToUse) {
+          setError("Delivery not found among active assignments");
+        }
+      }
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleAdvance() {
+    if (!tracked) return;
+    setActionLoading(true);
+    try {
+      const nextStatus = tracked.status === "ASSIGNED" ? "EN_ROUTE" : "DELIVERED";
+      await onUpdateStatus(tracked.id, nextStatus);
+      setTracked((prev) => (prev ? { ...prev, status: nextStatus } : null));
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setActionLoading(false);
+    }
+  }
+
+  const job = tracked ?? activeJob;
+  const isJobActive = activeJob && ["ASSIGNED", "EN_ROUTE"].includes(activeJob.status);
+
   return (
     <div className="space-y-4">
+      {/* Search Input Bar FIRST */}
       <div className="flex gap-2 max-w-md">
-        <input defaultValue="AGR-0041"
+        <input
+          value={trackId}
+          onChange={(e) => setTrackId(e.target.value)}
           className="flex-1 h-10 px-3 rounded-lg border border-[#D3EE98] focus:outline-none focus:border-[#72BF78] text-sm"
-          placeholder="Enter delivery ID…" />
-        <Btn variant="primary">Track</Btn>
+          placeholder="Enter delivery ID…"
+        />
+        <Btn variant="primary" onClick={() => handleTrack()} disabled={loading}>
+          {loading ? <Loader2 size={14} className="animate-spin" /> : "Track"}
+        </Btn>
       </div>
-      <div className="bg-white border border-[#D3EE98]/80 rounded-xl overflow-hidden">
-        <div className="bg-[#D3EE98] h-40 flex items-center justify-center">
-          <div className="text-center">
-            <Navigation size={32} className="text-[#3a7a3e] mx-auto mb-1" />
-            <p className="text-[#3a7a3e] text-sm font-medium">GPS Active · 14 km away</p>
+
+      {/* Quick Select card BELOW search input */}
+      {isJobActive && (
+        <div className="bg-white border border-[#D3EE98] rounded-xl p-4 shadow-sm">
+          <div className="flex items-center gap-2 mb-3">
+            <span className="w-2 h-2 rounded-full bg-[#72BF78] animate-pulse" />
+            <h4 className="text-xs font-semibold text-[#3a7a3e] uppercase tracking-wide">
+              Active Assignment Quick-Select
+            </h4>
+          </div>
+          <button
+            onClick={() => handleTrack(activeJob.id)}
+            className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs transition-all duration-150 border text-left cursor-pointer ${
+              trackId === activeJob.id
+                ? "bg-[#3a7a3e] text-white border-[#3a7a3e] shadow-sm font-medium"
+                : "bg-[#f8fdf8] text-[#333] border-[#D3EE98] hover:border-[#72BF78] hover:bg-[#edfae0]"
+            }`}
+          >
+            <Package size={14} className={trackId === activeJob.id ? "text-[#D3EE98]" : "text-[#72BF78]"} />
+            <div>
+              <span className="font-mono font-medium block">{activeJob.id}</span>
+              <span className={`text-[10px] block ${trackId === activeJob.id ? "text-white/80" : "text-[#777]"}`}>
+                {activeJob.cargo} · {activeJob.weightKg}kg ({uiStatus(activeJob.status)})
+              </span>
+            </div>
+          </button>
+        </div>
+      )}
+
+      {error && <ErrorBanner msg={error} />}
+
+      {job ? (
+        <div className="bg-white border border-[#D3EE98]/80 rounded-xl overflow-hidden">
+          <DeliveryMap
+            pickup={job.pickup}
+            destination={job.destination}
+            status={job.status}
+            height="160px"
+          />
+          <div className="p-4">
+            <div className="flex justify-between mb-2">
+              <p className="font-medium text-[#333]">
+                {job.id} · {job.cargo} · {job.weightKg} kg
+              </p>
+              <StatusPill status={uiStatus(job.status)} />
+            </div>
+            <p className="text-xs text-[#666] mb-3">Farmer: {job.farmer?.fullName ?? "—"} ({job.pickup})</p>
+            <div className="flex flex-wrap gap-2 items-center">
+              {job.status !== "DELIVERED" && (
+                <Btn variant="primary" className="text-xs py-1.5" onClick={handleAdvance} disabled={actionLoading}>
+                  {actionLoading ? <Loader2 size={12} className="animate-spin" /> : null}
+                  {job.status === "ASSIGNED" ? "Mark as picked up" : "Mark as delivered"}
+                </Btn>
+              )}
+              {onEnterDriveMode && (
+                <button
+                  type="button"
+                  onClick={onEnterDriveMode}
+                  className="flex items-center gap-1.5 bg-[#3a7a3e] text-white text-xs font-medium px-3 py-1.5 rounded-lg hover:bg-[#2a5c2e] transition-colors"
+                >
+                  <Truck size={14} /> Enter Drive Mode
+                </button>
+              )}
+              {/* Direct phone contact */}
+              <div className="flex items-center gap-1.5 text-xs text-[#3a7a3e] font-medium bg-[#edfae0] px-3 py-1.5 rounded-lg">
+                <Phone size={13} />
+                <span>Farmer Contact: {job.farmer?.fullName ?? "Farmer"} ({job.farmer?.phone ?? "+250 788 000 456"})</span>
+              </div>
+            </div>
           </div>
         </div>
-        <div className="p-4">
-          <div className="flex justify-between mb-2">
-            <p className="font-medium text-[#333]">AGR-0041 · Tomatoes · 480 kg</p>
-            <StatusPill status="En route" />
-          </div>
-          <div className="flex gap-2">
-            <Btn variant="primary" className="text-xs py-1.5">Mark as delivered</Btn>
-            <Btn variant="ghost" className="text-xs py-1.5"><Phone size={12} /> Contact farmer</Btn>
-          </div>
-        </div>
-      </div>
+      ) : (
+        <p className="text-sm text-[#888]">No active shipment tracked.</p>
+      )}
     </div>
   );
 }
 
 // ── Drive Mode ────────────────────────────────────────────────────────────────
-function DriveModeView({ onExit }: { onExit: () => void }) {
+function DriveModeView({
+  activeJob,
+  onExit,
+  onUpdateStatus,
+}: {
+  activeJob: DriverJob | null;
+  onExit: () => void;
+  onUpdateStatus: (id: string, status: "EN_ROUTE" | "DELIVERED") => Promise<any>;
+}) {
+  const [loadingAction, setLoadingAction] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  // Live Geolocation State
+  const [liveCoords, setLiveCoords] = useState<[number, number] | null>(null);
+  const [heading, setHeading] = useState<number | null>(null);
+  const [gpsActive, setGpsActive] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (!navigator.geolocation) {
+      setGpsActive(false);
+      return;
+    }
+
+    const watchId = navigator.geolocation.watchPosition(
+      (pos) => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        setLiveCoords([lat, lng]);
+        setGpsActive(true);
+        if (pos.coords.heading != null && !isNaN(pos.coords.heading)) {
+          setHeading(pos.coords.heading);
+        }
+      },
+      (err) => {
+        console.warn("Geolocation positioning error/fallback:", err.message);
+        setGpsActive(false);
+      },
+      {
+        enableHighAccuracy: true,
+        maximumAge: 3000,
+        timeout: 10000,
+      }
+    );
+
+    return () => navigator.geolocation.clearWatch(watchId);
+  }, []);
+
+  async function handleStatusChange(nextStatus: "EN_ROUTE" | "DELIVERED") {
+    if (!activeJob) return;
+    setLoadingAction(nextStatus);
+    setError(null);
+    try {
+      await onUpdateStatus(activeJob.id, nextStatus);
+      if (nextStatus === "DELIVERED") {
+        onExit();
+      }
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setLoadingAction(null);
+    }
+  }
+
   return (
-    <div className="min-h-screen bg-[#3a7a3e] flex flex-col">
-      <div className="flex items-center justify-between px-4 py-3 bg-[#2a5c2e]">
-        <span className="text-white font-medium text-lg">Drive Mode</span>
+    <div className="h-screen bg-[#3a7a3e] flex flex-col overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-3 bg-[#2a5c2e] shrink-0">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <Truck className="text-[#FEFF9F]" size={20} />
+            <span className="text-white font-medium text-lg">Drive Mode</span>
+          </div>
+
+          <div className="flex items-center gap-1.5 bg-[#1b431e] px-2.5 py-1 rounded-full text-xs font-medium text-white border border-[#D3EE98]/30">
+            <span className={`w-2 h-2 rounded-full ${gpsActive ? 'bg-[#72BF78] animate-pulse' : 'bg-amber-400'}`} />
+            <span>{gpsActive ? 'Live GPS Pointing Active' : 'Simulated Route GPS'}</span>
+          </div>
+        </div>
+
         <button
           onClick={onExit}
-          className="bg-[#D3EE98] text-[#3a7a3e] rounded-lg px-3 py-1.5 text-sm font-medium hover:bg-[#c8e88c] transition-colors"
+          className="bg-[#D3EE98] text-[#3a7a3e] rounded-lg px-3.5 py-1.5 text-sm font-semibold hover:bg-[#c8e88c] transition-colors"
         >
           Exit drive mode
         </button>
       </div>
-      {/* GPS map area */}
-      <div className="bg-[#D3EE98] mx-4 mt-4 rounded-xl flex-1 flex items-center justify-center min-h-60">
-        <div className="text-center">
-          <Navigation size={40} className="text-[#3a7a3e] mx-auto mb-2" />
-          <p className="text-[#3a7a3e] font-medium text-lg">GPS Active</p>
-          <p className="text-[#555] text-sm mt-1">Kigali Market · 14 km away</p>
+
+      {error && (
+        <div className="mx-4 mt-2 p-2.5 bg-red-100 text-red-700 rounded-lg text-xs shrink-0">
+          {error}
         </div>
+      )}
+
+      {/* Map fills all available remaining vertical space */}
+      <div className="flex-1 h-full flex flex-col mx-4 my-3 rounded-xl overflow-hidden shadow-inner relative">
+        {activeJob ? (
+          <DeliveryMap
+            pickup={activeJob.pickup}
+            destination={activeJob.destination}
+            status={activeJob.status}
+            height="100%"
+            driverLiveCoords={liveCoords}
+            driverHeading={heading}
+            isDriveMode={true}
+          />
+        ) : (
+          <div className="bg-[#D3EE98] h-full flex items-center justify-center rounded-xl">
+            <div className="text-center p-4">
+              <Navigation size={40} className="text-[#3a7a3e] mx-auto mb-2" />
+              <p className="text-[#3a7a3e] font-medium text-lg">No active trip assigned</p>
+            </div>
+          </div>
+        )}
       </div>
-      <div className="p-4 pb-8 space-y-3">
-        <p className="text-white/70 text-sm text-center">AGR-0041 · Tomatoes · 480 kg</p>
-        <div className="grid grid-cols-2 gap-3">
-          <button className="bg-[#A0D683] text-[#2a5c2e] rounded-xl font-medium text-lg py-5 min-h-[56px] hover:bg-[#90c878] transition-colors">
-            Mark as picked up
-          </button>
-          <button className="bg-[#FEFF9F] text-[#3a7a3e] rounded-xl font-medium text-lg py-5 min-h-[56px] hover:bg-[#eef088] transition-colors">
-            Mark as delivered
-          </button>
+
+      {/* Compact Bottom Action Bar — pinned to bottom without huge empty zone */}
+      <div className="bg-[#2a5c2e] px-4 py-3 shrink-0 border-t border-[#D3EE98]/20 shadow-lg">
+        {activeJob ? (
+          <div className="max-w-2xl mx-auto space-y-2">
+            <div className="flex items-center justify-between text-xs text-white/90 px-1">
+              <span className="font-mono font-medium">{activeJob.id} · {activeJob.cargo} ({activeJob.weightKg} kg)</span>
+              <span className="truncate max-w-[220px]">From: {activeJob.pickup} → To: {activeJob.destination}</span>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                disabled={activeJob.status !== "ASSIGNED" || loadingAction != null}
+                onClick={() => handleStatusChange("EN_ROUTE")}
+                className="bg-[#A0D683] text-[#2a5c2e] rounded-xl font-medium text-base py-3.5 hover:bg-[#90c878] transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-sm"
+              >
+                {loadingAction === "EN_ROUTE" && <Loader2 size={16} className="animate-spin" />}
+                Mark as picked up
+              </button>
+              <button
+                disabled={activeJob.status !== "EN_ROUTE" || loadingAction != null}
+                onClick={() => handleStatusChange("DELIVERED")}
+                className="bg-[#FEFF9F] text-[#3a7a3e] rounded-xl font-medium text-base py-3.5 hover:bg-[#eef088] transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-sm"
+              >
+                {loadingAction === "DELIVERED" && <Loader2 size={16} className="animate-spin" />}
+                Mark as delivered
+              </button>
+            </div>
+          </div>
+        ) : (
+          <p className="text-white/70 text-center text-sm py-1">Accept a delivery job to begin Drive Mode.</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Complaints View ────────────────────────────────────────────────────────────
+function ComplaintsView({
+  complaints,
+  onCreateComplaint,
+}: {
+  complaints: any[];
+  onCreateComplaint: (issue: string, priority: string) => Promise<any>;
+}) {
+  const [issue, setIssue] = useState("");
+  const [priority, setPriority] = useState("Medium");
+  const [submitting, setSubmitting] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!issue.trim()) return;
+    setSubmitting(true);
+    setMsg(null);
+    try {
+      await onCreateComplaint(issue.trim(), priority);
+      setIssue("");
+      setMsg("Complaint submitted successfully.");
+    } catch (err) {
+      alert((err as Error).message);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <div className="space-y-6 max-w-2xl">
+      <div>
+        <h3 className="font-medium text-[#333] mb-3">Submit a complaint</h3>
+        <form onSubmit={handleSubmit} className="bg-white border border-[#D3EE98]/80 rounded-xl p-4 space-y-3">
+          <div>
+            <label className="text-xs text-[#666] mb-1 block">Describe the issue</label>
+            <textarea
+              required
+              rows={3}
+              value={issue}
+              onChange={(e) => setIssue(e.target.value)}
+              placeholder="Provide details about payment, route, or cargo issue…"
+              className="w-full p-2.5 rounded-lg border border-[#D3EE98] text-sm text-[#333] focus:outline-none focus:border-[#72BF78]"
+            />
+          </div>
+          <div>
+            <label className="text-xs text-[#666] mb-1 block">Priority level</label>
+            <select
+              value={priority}
+              onChange={(e) => setPriority(e.target.value)}
+              className="h-10 px-3 rounded-lg border border-[#D3EE98] text-sm text-[#333] bg-white"
+            >
+              <option>Low</option>
+              <option>Medium</option>
+              <option>High</option>
+            </select>
+          </div>
+
+          {msg && <div className="text-xs text-[#2e7d32] bg-[#e8f5e9] rounded-lg p-2">{msg}</div>}
+
+          <Btn variant="primary" type="submit" disabled={submitting}>
+            {submitting ? <Loader2 size={14} className="animate-spin" /> : "Submit complaint"}
+          </Btn>
+        </form>
+      </div>
+
+      <div>
+        <h3 className="font-medium text-[#333] mb-3">My complaints</h3>
+        <div className="space-y-2">
+          {complaints.length === 0 ? (
+            <p className="text-xs text-[#888]">No complaints submitted yet.</p>
+          ) : (
+            complaints.map((c) => (
+              <div key={c.id} className="bg-white border border-[#D3EE98]/80 rounded-xl p-4 flex items-center justify-between">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-xs font-medium text-[#3a7a3e]">{c.id}</span>
+                    <StatusPill status={c.priority as any} />
+                    {c.resolved && <StatusPill status="Delivered" />}
+                  </div>
+                  <p className="text-sm text-[#333]">{c.issue}</p>
+                  <p className="text-xs text-[#888] mt-1">{formatDate(c.createdAt)}</p>
+                </div>
+                <span className={`text-xs px-2 py-1 rounded-full font-medium ${c.resolved ? "bg-[#e8f5e9] text-[#2e7d32]" : "bg-[#fff8e1] text-[#f57f17]"}`}>
+                  {c.resolved ? "Resolved" : "Pending review"}
+                </span>
+              </div>
+            ))
+          )}
         </div>
       </div>
     </div>
   );
 }
 
-// ── Settings ─────────────────────────────────────────────────────────────────
-function SettingsView() {
+// ── Settings view ──────────────────────────────────────────────────────────────
+function SettingsView({
+  profile,
+  onSave,
+}: {
+  profile: { fullName: string; phone: string | null; email: string; region: string | null } | null;
+  onSave: (payload: {
+    fullName?: string;
+    phone?: string;
+    region?: string;
+    currentPassword?: string;
+    newPassword?: string;
+  }) => Promise<any>;
+}) {
+  const [fullName,  setFullName]  = useState(profile?.fullName ?? "");
+  const [phone,     setPhone]     = useState(profile?.phone    ?? "");
+  const [region,    setRegion]    = useState(profile?.region   ?? "");
+  const [currentPw, setCurrentPw] = useState("");
+  const [newPw,     setNewPw]     = useState("");
+  const [confirmPw, setConfirmPw] = useState("");
+  const [saving,    setSaving]    = useState(false);
+  const [msg,       setMsg]       = useState<string | null>(null);
+  const [error,     setError]     = useState<string | null>(null);
+
+  async function handleSave() {
+    setMsg(null);
+    setError(null);
+    if (newPw && newPw !== confirmPw) {
+      setError("New passwords do not match");
+      return;
+    }
+    setSaving(true);
+    try {
+      await onSave({
+        fullName: fullName || undefined,
+        phone: phone || undefined,
+        region: region || undefined,
+        currentPassword: currentPw || undefined,
+        newPassword: newPw || undefined,
+      });
+      setMsg("Changes saved successfully");
+      setCurrentPw(""); setNewPw(""); setConfirmPw("");
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
     <div className="max-w-lg space-y-6">
       <div>
-        <h3 className="font-medium text-[#333] mb-3">Personal information</h3>
+        <h3 className="font-medium text-[#333] mb-3">Driver profile</h3>
         <div className="bg-white border border-[#D3EE98]/80 rounded-xl p-4 space-y-3">
-          <Input label="Full name" placeholder="Samuel Kamanzi" />
-          <Input label="Phone number" type="tel" placeholder="+250 788 891 234" />
-          <Input label="Email address" type="email" placeholder="samuel@example.com" />
-          <Input label="Region" placeholder="Kigali, Rwanda" />
+          <Input label="Full name" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Driver full name" />
+          <div className="flex flex-col gap-1">
+            <label className="text-xs text-[#666]">Email address</label>
+            <input
+              className="h-10 px-3 rounded-lg border border-[#e0e0e0] text-sm text-[#888] bg-[#f8f8f8] cursor-not-allowed"
+              value={profile?.email ?? ""}
+              disabled
+            />
+          </div>
+          <Input label="Phone number" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+250 788 000 000" />
+          <Input label="Primary region" value={region} onChange={(e) => setRegion(e.target.value)} placeholder="Kigali, Northern Province" />
         </div>
       </div>
-      <Btn variant="primary">Save changes</Btn>
+
+      <div>
+        <h3 className="font-medium text-[#333] mb-3">Change password</h3>
+        <div className="bg-white border border-[#D3EE98]/80 rounded-xl p-4 space-y-3">
+          <Input label="Current password"     value={currentPw} onChange={(e) => setCurrentPw(e.target.value)} type="password" placeholder="••••••••" />
+          <Input label="New password"         value={newPw}     onChange={(e) => setNewPw(e.target.value)}     type="password" placeholder="••••••••" />
+          <Input label="Confirm new password" value={confirmPw} onChange={(e) => setConfirmPw(e.target.value)} type="password" placeholder="••••••••" />
+        </div>
+      </div>
+
+      {msg   && <div className="text-sm text-[#2e7d32] bg-[#e8f5e9] rounded-lg px-3 py-2">{msg}</div>}
+      {error && <div className="text-sm text-[#c62828] bg-[#fdecea] rounded-lg px-3 py-2">{error}</div>}
+
+      <Btn variant="primary" onClick={handleSave} disabled={saving}>
+        {saving ? <Loader2 size={14} className="animate-spin" /> : null}
+        Save changes
+      </Btn>
     </div>
   );
 }
 
-// ── Driver Dashboard ──────────────────────────────────────────────────────────
-export function DriverDashboard() {
-  const [activeItem, setActiveItem] = useState(0);
-  const [driveMode, setDriveMode] = useState(false);
-  const [earningsPeriod, setEarningsPeriod] = useState<"weekly" | "monthly">("weekly");
+import { useHashTab } from "../hooks/useHashTab";
 
-  if (driveMode) return <DriveModeView onExit={() => setDriveMode(false)} />;
+const DRIVER_SLUGS = ["dashboard", "jobs", "active", "earnings", "complaints", "history", "settings"];
+
+// ── Driver Dashboard Component ─────────────────────────────────────────────────
+export function DriverDashboard() {
+  const [activeItem, setActiveItem] = useHashTab(DRIVER_SLUGS);
+  const [driveMode, setDriveMode] = useState(false);
+  const [jobFilter, setJobFilter] = useState("ALL");
+  const [earningsPeriod, setEarningsPeriod] = useState<"weekly" | "monthly">("weekly");
+  const [acceptingId, setAcceptingId] = useState<string | null>(null);
+
+  const {
+    dashboard,
+    availableJobs,
+    activeDelivery,
+    earnings,
+    history,
+    complaints,
+    profile,
+    acceptJob,
+    updateStatus,
+    updateProfile,
+    createComplaint,
+  } = useDriverData(earningsPeriod, jobFilter === "ALL" ? undefined : jobFilter);
+
+  const handleAcceptJob = async (id: string) => {
+    setAcceptingId(id);
+    try {
+      await acceptJob(id);
+      setDriveMode(true); // Automatically switch driver into Drive Mode to fulfill delivery!
+    } catch (err) {
+      alert((err as Error).message);
+    } finally {
+      setAcceptingId(null);
+    }
+  };
+
+  if (driveMode) {
+    return (
+      <DriveModeView
+        activeJob={activeDelivery.data}
+        onExit={() => setDriveMode(false)}
+        onUpdateStatus={updateStatus}
+      />
+    );
+  }
 
   const content = () => {
     switch (activeItem) {
-      case 0: // Dashboard
+      case 0: // Overview
         return (
           <>
-            <div className="flex items-center justify-between mb-5">
-              <p className="text-xs text-[#888]">Welcome back, Samuel Kamanzi · Kigali</p>
-              <button
-                onClick={() => setDriveMode(true)}
-                className="flex items-center gap-1.5 bg-[#3a7a3e] text-white rounded-lg px-3 py-1.5 text-sm font-medium hover:bg-[#2a5c2e] transition-colors min-h-[44px]"
-              >
-                <Truck size={14} /> Drive Mode
-              </button>
+            {dashboard.data?.recentNotification && (
+              <NotifBanner n={{ msg: dashboard.data.recentNotification.message, time: "Just now", type: "info" }} />
+            )}
+
+            <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+              <div>
+                <p className="text-xs text-[#888]">Driver portal · Dashboard</p>
+                <h1 className="font-medium text-[#333] text-lg">
+                  Ready to drive{profile.data?.fullName ? `, ${profile.data.fullName}` : ""}?
+                </h1>
+              </div>
+              <Btn variant="primary" onClick={() => setDriveMode(true)}>
+                <Truck size={15} /> Launch drive mode
+              </Btn>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
-              <MetricCard label="Today's earnings"    value="RWF 24,000" />
-              <MetricCard label="Deliveries this week" value="7" sub="+2 from last week" />
-              <MetricCard label="Rating"              value="4.8 / 5.0" sub="Based on 142 deliveries" />
-            </div>
-            <h2 className="font-medium text-[#333] mb-3">Available requests</h2>
-            <div className="space-y-3">
-              {availableJobs.slice(0, 3).map((job) => (
-                <div key={job.id} className="bg-white border border-[#D3EE98]/80 rounded-xl p-4">
-                  <div className="flex items-start justify-between mb-2">
-                    <div>
-                      <p className="text-sm font-medium text-[#3a7a3e]">{job.id}</p>
-                      <p className="text-xs text-[#666] mt-0.5">{job.cargo} · {job.weight}</p>
-                    </div>
-                    <p className="text-sm font-medium text-[#2a5c2e]">{job.pay}</p>
-                  </div>
-                  <div className="flex items-center flex-wrap gap-1.5 text-xs text-[#555] mb-3">
-                    <MapPin size={11} className="text-[#72BF78]" />
-                    <span>{job.pickup}</span>
-                    <ArrowRight size={10} />
-                    <span>{job.destination}</span>
-                    <span className="ml-auto text-[#888]">{job.distance}</span>
-                  </div>
-                  <div className="flex gap-2">
-                    <Btn variant="primary" className="flex-1 text-xs py-1.5">Accept</Btn>
-                    <Btn variant="danger"  className="flex-1 text-xs py-1.5">Reject</Btn>
+
+            {dashboard.loading ? (
+              <LoadingSpinner />
+            ) : dashboard.error ? (
+              <ErrorBanner msg={dashboard.error} />
+            ) : (
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+                <MetricCard label="Today's earnings"  value={formatCost(dashboard.data?.todayEarnings ?? 0, "RWF")} />
+                <MetricCard label="Trips completed"   value={String(dashboard.data?.tripsCompletedThisMonth ?? 0)} sub="This month" />
+                <MetricCard label="Available jobs"    value={String(dashboard.data?.availableJobsCount ?? 0)} />
+                <MetricCard label="Driver rating"     value={String(dashboard.data?.driverRating ?? 4.9)} sub="Out of 5.0" />
+              </div>
+            )}
+
+            {/* Active Delivery card if any */}
+            {activeDelivery.data && (
+              <div className="mb-6 bg-[#f8fdf8] border border-[#D3EE98] rounded-xl p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-semibold text-[#3a7a3e] uppercase tracking-wide">Active Assignment</span>
+                  <StatusPill status={uiStatus(activeDelivery.data.status)} />
+                </div>
+                <p className="font-medium text-[#333]">
+                  {activeDelivery.data.id} · {activeDelivery.data.cargo} ({activeDelivery.data.weightKg} kg)
+                </p>
+                <p className="text-xs text-[#666] mt-1">From: {activeDelivery.data.pickup} → To: {activeDelivery.data.destination}</p>
+                
+                <div className="mt-3 flex flex-wrap gap-2 items-center">
+                  <Btn variant="primary" className="text-xs py-1" onClick={() => setDriveMode(true)}>
+                    <Truck size={13} /> Start delivery in Drive Mode
+                  </Btn>
+                  <Btn variant="outline" className="text-xs py-1" onClick={() => setActiveItem(2)}>
+                    View active delivery
+                  </Btn>
+                  {/* Direct contact phone number */}
+                  <div className="flex items-center gap-1.5 text-xs text-[#3a7a3e] font-medium bg-[#edfae0] px-3 py-1.5 rounded-lg">
+                    <Phone size={13} />
+                    <span>Farmer Contact: {activeDelivery.data.farmer?.fullName ?? "Farmer"} ({activeDelivery.data.farmer?.phone ?? "+250 788 000 456"})</span>
                   </div>
                 </div>
-              ))}
-            </div>
+              </div>
+            )}
+
+            <h2 className="font-medium text-[#333] mb-3">Available jobs nearby</h2>
+            {availableJobs.loading ? (
+              <LoadingSpinner />
+            ) : availableJobs.error ? (
+              <ErrorBanner msg={availableJobs.error} />
+            ) : (
+              <JobsTable rows={availableJobs.data?.slice(0, 5) ?? []} onAccept={handleAcceptJob} acceptingId={acceptingId} />
+            )}
           </>
         );
 
       case 1: // Available jobs
         return (
           <>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="font-medium text-[#333]">Available jobs</h2>
-              <div className="flex items-center gap-1.5 border border-[#D3EE98] rounded-lg px-3 h-9">
-                <Filter size={13} className="text-[#888]" />
-                <select className="bg-transparent focus:outline-none text-sm text-[#555]">
-                  <option>All cargo types</option>
-                  <option>Tomatoes</option>
-                  <option>Maize</option>
-                  <option>Cassava</option>
+            <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+              <div className="flex items-center gap-2">
+                <h2 className="font-medium text-[#333]">Available jobs</h2>
+                <span className="text-xs text-[#888]">({availableJobs.data?.length ?? 0} available)</span>
+              </div>
+              <div className="relative flex items-center">
+                <Filter size={13} className="absolute left-2.5 text-[#888] pointer-events-none" />
+                <select
+                  value={jobFilter}
+                  onChange={(e) => setJobFilter(e.target.value)}
+                  className="h-9 pl-7 pr-3 rounded-lg border border-[#D3EE98] text-xs text-[#333] bg-white focus:outline-none focus:border-[#72BF78]"
+                >
+                  <option value="ALL">All produce</option>
+                  <option value="Tomatoes">Tomatoes</option>
+                  <option value="Potatoes">Potatoes</option>
+                  <option value="Avocados">Avocados</option>
                 </select>
               </div>
             </div>
-            <div className="space-y-3">
-              {availableJobs.map((job) => (
-                <div key={job.id} className="bg-white border border-[#D3EE98]/80 rounded-xl p-4">
-                  <div className="flex items-start justify-between mb-2">
-                    <div>
-                      <p className="text-sm font-medium text-[#3a7a3e]">{job.id}</p>
-                      <p className="text-xs text-[#666] mt-0.5">{job.cargo} · {job.weight}</p>
-                    </div>
-                    <p className="text-sm font-medium text-[#2a5c2e]">{job.pay}</p>
-                  </div>
-                  <div className="flex items-center flex-wrap gap-1.5 text-xs text-[#555] mb-3">
-                    <MapPin size={11} className="text-[#72BF78]" />
-                    <span>{job.pickup}</span>
-                    <ArrowRight size={10} />
-                    <span>{job.destination}</span>
-                    <span className="ml-auto text-[#888]">{job.distance}</span>
-                  </div>
-                  <div className="flex gap-2">
-                    <Btn variant="primary" className="flex-1 text-xs py-1.5">Accept</Btn>
-                    <Btn variant="danger"  className="flex-1 text-xs py-1.5">Reject</Btn>
-                  </div>
-                </div>
-              ))}
-            </div>
+
+            {availableJobs.loading ? (
+              <LoadingSpinner />
+            ) : availableJobs.error ? (
+              <ErrorBanner msg={availableJobs.error} />
+            ) : (
+              <JobsTable rows={availableJobs.data ?? []} onAccept={handleAcceptJob} acceptingId={acceptingId} />
+            )}
           </>
         );
 
       case 2: // Active delivery
         return (
-          <>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="font-medium text-[#333]">Active delivery</h2>
-              <button
-                onClick={() => setDriveMode(true)}
-                className="flex items-center gap-1.5 bg-[#3a7a3e] text-white rounded-lg px-3 py-1.5 text-sm font-medium hover:bg-[#2a5c2e] transition-colors"
-              >
-                <Truck size={14} /> Drive Mode
-              </button>
-            </div>
-            <div className="bg-white border border-[#D3EE98]/80 rounded-xl overflow-hidden mb-4">
-              <div className="bg-[#D3EE98] h-40 flex items-center justify-center">
-                <div className="text-center">
-                  <Navigation size={32} className="text-[#3a7a3e] mx-auto mb-1" />
-                  <p className="text-[#3a7a3e] text-sm font-medium">GPS Active · 14 km away</p>
-                </div>
-              </div>
-              <div className="p-4">
-                <div className="flex justify-between mb-2">
-                  <p className="font-medium text-[#333]">AGR-0041 · Tomatoes</p>
-                  <StatusPill status="En route" />
-                </div>
-                <p className="text-xs text-[#666] mb-3">480 kg · Jean-Pierre Habimana</p>
-                <div className="flex gap-2 flex-wrap">
-                  <Btn variant="primary" className="text-xs py-1.5">Mark as delivered</Btn>
-                  <Btn variant="ghost"   className="text-xs py-1.5"><Phone size={12} /> Contact farmer</Btn>
-                </div>
-              </div>
-            </div>
-            <TrackShipmentView />
-          </>
+          <TrackShipmentView
+            activeJob={activeDelivery.data}
+            onUpdateStatus={updateStatus}
+            onEnterDriveMode={() => setDriveMode(true)}
+          />
         );
 
       case 3: // Earnings
         return (
           <>
             <div className="flex items-center justify-between mb-4">
-              <h2 className="font-medium text-[#333]">Earnings</h2>
-              <div className="flex gap-1 bg-[#f8fdf8] border border-[#D3EE98]/60 rounded-lg p-0.5">
+              <h2 className="font-medium text-[#333]">Earnings & payouts</h2>
+              <div className="flex gap-1 bg-[#f0f7eb] p-1 rounded-lg">
                 {(["weekly", "monthly"] as const).map((p) => (
                   <button
                     key={p}
                     onClick={() => setEarningsPeriod(p)}
-                    className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
-                      earningsPeriod === p ? "bg-white text-[#3a7a3e] shadow-sm" : "text-[#888]"
+                    className={`px-3 py-1 rounded-md text-xs capitalize transition-colors ${
+                      earningsPeriod === p ? "bg-[#3a7a3e] text-white font-medium" : "text-[#555] hover:text-[#333]"
                     }`}
                   >
-                    {p.charAt(0).toUpperCase() + p.slice(1)}
+                    {p}
                   </button>
                 ))}
               </div>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
-              <MetricCard label="This week"        value="RWF 166,500" />
-              <MetricCard label="This month"       value="RWF 482,000" sub="+8% from last month" />
-              <MetricCard label="Total deliveries" value="142" />
-            </div>
-            <div className="bg-white border border-[#D3EE98]/80 rounded-xl p-4 mb-4">
-              <p className="text-sm font-medium text-[#333] mb-3">
-                {earningsPeriod === "weekly" ? "This week" : "This month"}
-              </p>
-              <ResponsiveContainer width="100%" height={160}>
-                <BarChart data={earningsPeriod === "weekly" ? earningsData : earningsMonthlyData} barSize={20}>
-                  <XAxis dataKey={earningsPeriod === "weekly" ? "day" : "week"} tick={{ fontSize: 11, fill: "#888" }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 10, fill: "#888" }} axisLine={false} tickLine={false} tickFormatter={(v: number) => `${v / 1000}k`} />
-                  <Tooltip formatter={(v: number) => [`RWF ${v.toLocaleString()}`, "Earnings"]} contentStyle={{ fontSize: 11, borderRadius: 8, border: "1px solid #D3EE98" }} />
-                  <Bar dataKey="earnings" fill="#72BF78" radius={[4, 4, 0, 0]} isAnimationActive={false} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
+
+            {earnings.loading ? (
+              <LoadingSpinner />
+            ) : earnings.error ? (
+              <ErrorBanner msg={earnings.error} />
+            ) : (
+              <>
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+                  <MetricCard label="Total gross"  value={formatCost(earnings.data?.totalEarnings ?? 0, "RWF")} />
+                  <MetricCard label="Platform fee" value={formatCost(earnings.data?.platformFee ?? 0, "RWF")} sub="10%" />
+                  <MetricCard label="Net payout"   value={formatCost(earnings.data?.netEarnings ?? 0, "RWF")} />
+                  <MetricCard label="Completed"    value={String(earnings.data?.completedCount ?? 0)} sub="Deliveries" />
+                </div>
+
+                <div className="bg-white border border-[#D3EE98]/80 rounded-xl p-4 mb-6">
+                  <p className="text-sm font-medium text-[#333] mb-4">Earnings chart ({earningsPeriod})</p>
+                  <div className="h-64">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={earnings.data?.chartData ?? []}>
+                        <XAxis dataKey="name" stroke="#888" fontSize={11} />
+                        <YAxis stroke="#888" fontSize={11} />
+                        <Tooltip />
+                        <Bar dataKey="amount" fill="#72BF78" radius={[4, 4, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              </>
+            )}
           </>
         );
 
-      case 4:
-        return (
-          <>
-            <h2 className="font-medium text-[#333] mb-4">Notifications</h2>
-            <div className="space-y-2">{notifications.map((n, i) => <NotifBanner key={i} n={n} />)}</div>
-          </>
-        );
+      case 4: // Complaints
+        return <ComplaintsView complaints={complaints.data ?? []} onCreateComplaint={createComplaint} />;
 
       case 5: // History
         return (
           <>
-            <h2 className="font-medium text-[#333] mb-4">Delivery history</h2>
-            <div className="overflow-x-auto rounded-xl border border-[#D3EE98]/60">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="bg-[#f8fdf8] border-b border-[#D3EE98]/60">
-                    {["Date", "ID", "Cargo", "Route", "Distance", "Earnings", "Status"].map((h) => (
-                      <th key={h} className="px-3 py-2.5 text-left text-[11px] text-[#666] font-medium uppercase tracking-wide whitespace-nowrap">{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {historyDeliveries.map((row) => (
-                    <tr key={row.id} className="border-b border-[#D3EE98]/30 hover:bg-[#f8fdf8]">
-                      <td className="px-3 py-2.5 text-[#888] whitespace-nowrap">{row.date}</td>
-                      <td className="px-3 py-2.5 text-[#3a7a3e] font-medium whitespace-nowrap">{row.id}</td>
-                      <td className="px-3 py-2.5 text-[#333] whitespace-nowrap">{row.cargo}</td>
-                      <td className="px-3 py-2.5 text-[#555] whitespace-nowrap">{row.pickup} → {row.destination}</td>
-                      <td className="px-3 py-2.5 text-[#555] whitespace-nowrap">—</td>
-                      <td className="px-3 py-2.5 text-[#555] whitespace-nowrap">{row.cost}</td>
-                      <td className="px-3 py-2.5 whitespace-nowrap"><StatusPill status={row.status} /></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <h2 className="font-medium text-[#333] mb-3">Completed delivery history</h2>
+            {history.loading ? (
+              <LoadingSpinner />
+            ) : history.error ? (
+              <ErrorBanner msg={history.error} />
+            ) : (
+              <JobsTable rows={history.data ?? []} readOnly />
+            )}
           </>
         );
 
-      case 6: return <SettingsView />;
-      default: return null;
+      case 6: // Settings
+        return <SettingsView profile={profile.data} onSave={updateProfile} />;
+
+      default:
+        return null;
     }
   };
 
@@ -315,5 +782,64 @@ export function DriverDashboard() {
     <DashboardShell role="driver" activeItem={activeItem} setActiveItem={setActiveItem}>
       {content()}
     </DashboardShell>
+  );
+}
+
+// ── Jobs Table Helper ────────────────────────────────────────────────────────
+function JobsTable({
+  rows,
+  onAccept,
+  acceptingId,
+  readOnly,
+}: {
+  rows: DriverJob[];
+  onAccept?: (id: string) => Promise<void>;
+  acceptingId?: string | null;
+  readOnly?: boolean;
+}) {
+  if (rows.length === 0) {
+    return <p className="text-sm text-[#888] py-4">No jobs found.</p>;
+  }
+
+  return (
+    <div className="overflow-x-auto rounded-xl border border-[#D3EE98]/60">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="bg-[#f8fdf8] border-b border-[#D3EE98]/60">
+            {["ID", "Produce", "Weight", "Pickup", "Destination", "Est. Pay", "Farmer", "Status", !readOnly ? "Action" : ""].filter(Boolean).map((h) => (
+              <th key={h} className="px-3 py-2.5 text-left text-[11px] text-[#666] font-medium uppercase tracking-wide whitespace-nowrap">{h}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr key={row.id} className="border-b border-[#D3EE98]/30 hover:bg-[#f8fdf8] transition-colors">
+              <td className="px-3 py-2.5 text-[#3a7a3e] font-medium whitespace-nowrap">{row.id}</td>
+              <td className="px-3 py-2.5 text-[#333] whitespace-nowrap">{row.cargo}</td>
+              <td className="px-3 py-2.5 text-[#555] whitespace-nowrap">{row.weightKg} kg</td>
+              <td className="px-3 py-2.5 text-[#555] whitespace-nowrap">{row.pickup}</td>
+              <td className="px-3 py-2.5 text-[#555] whitespace-nowrap">{row.destination}</td>
+              <td className="px-3 py-2.5 text-[#3a7a3e] font-medium whitespace-nowrap">{formatCost(row.totalCost, row.currency)}</td>
+              <td className="px-3 py-2.5 text-[#555] whitespace-nowrap">{row.farmer?.fullName ?? "—"}</td>
+              <td className="px-3 py-2.5 whitespace-nowrap"><StatusPill status={uiStatus(row.status)} /></td>
+              {!readOnly && (
+                <td className="px-3 py-2.5 whitespace-nowrap">
+                  {row.status === "PENDING" && onAccept && (
+                    <Btn
+                      variant="primary"
+                      className="text-xs py-1 px-3"
+                      onClick={() => onAccept(row.id)}
+                      disabled={acceptingId === row.id}
+                    >
+                      {acceptingId === row.id ? <Loader2 size={12} className="animate-spin" /> : "Accept job"}
+                    </Btn>
+                  )}
+                </td>
+              )}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }

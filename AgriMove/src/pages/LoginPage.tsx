@@ -6,7 +6,7 @@ import { useApp } from "../context/AppContext";
 import type { LoginTab, Page } from "../data/mockData";
 
 export function LoginPage() {
-  const { setPage, loginTab } = useApp();
+  const { setPage, loginTab, login } = useApp();
   const [tab, setTab] = useState<LoginTab>(loginTab);
   const [showForgot, setShowForgot] = useState(false);
   const [showPass, setShowPass] = useState(false);
@@ -14,6 +14,7 @@ export function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
+  const [phone, setPhone] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -25,7 +26,7 @@ export function LoginPage() {
       const endpoint = tab === "login" ? "/api/auth/login" : "/api/auth/signup";
       const payload = tab === "login" 
         ? { email, password }
-        : { email, password, fullName, role: role.toUpperCase() };
+        : { email, phone, password, fullName, role: role.toUpperCase() === "TRANSPORTER" ? "TRANSPORTER" : "FARMER" };
 
       const res = await fetch(`http://localhost:5000${endpoint}`, {
         method: "POST",
@@ -41,15 +42,9 @@ export function LoginPage() {
         return;
       }
 
-      // Success, store token and redirect
-      localStorage.setItem("agrimove_token", data.token);
-      
-      const userRole = data.user.role;
-      if (userRole === "FARMER") setPage("farmer");
-      else if (userRole === "TRANSPORTER") setPage("driver");
-      else if (userRole === "BUYER") setPage("buyer");
-      else if (userRole === "ADMIN") setPage("admin");
-      
+      // Success — use context login() to store token + user and auto-route
+      login(data.token, data.user);
+
     } catch (err) {
       setErrorMsg("Network error. Is the backend running?");
     } finally {
@@ -175,10 +170,18 @@ export function LoginPage() {
                 onChange={(e) => setFullName(e.target.value)}
               />
               <Input 
-                label="Email or phone number" 
+                label="Email address" 
+                type="email"
                 placeholder="jean@example.com" 
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+              />
+              <Input 
+                label="Phone number" 
+                type="tel"
+                placeholder="+250 788 123 456" 
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
               />
               <div className="flex flex-col gap-1">
                 <label htmlFor="new-password" className="text-xs text-[#666]">Password</label>
@@ -201,7 +204,6 @@ export function LoginPage() {
                 >
                   <option>Farmer</option>
                   <option>Transporter</option>
-                  <option>Buyer</option>
                 </select>
               </div>
               <Btn variant="primary" fullWidth onClick={handleSubmit} disabled={loading}>

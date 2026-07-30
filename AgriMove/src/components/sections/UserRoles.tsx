@@ -26,18 +26,6 @@ const roles = [
     ],
   },
   {
-    title: "Buyer",
-    avatarBg: "#FEFF9F",
-    avatarColor: "#7a7000",
-    emoji: "🛒",
-    capabilities: [
-      "Track incoming cargo live",
-      "Arrival SMS alerts",
-      "Confirm receipt with one tap",
-      "View transaction history",
-    ],
-  },
-  {
     title: "Admin",
     avatarBg: "#3a7a3e",
     avatarColor: "#D3EE98",
@@ -62,7 +50,7 @@ export function UserRoles() {
           Each user gets a tailored experience — simple enough for any literacy level
         </p>
 
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid sm:grid-cols-3 lg:grid-cols-3 gap-4">
           {roles.map((role, i) => (
             <div
               key={role.title}

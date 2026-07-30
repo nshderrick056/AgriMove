@@ -6,7 +6,6 @@ import { UserRoles } from "../components/sections/UserRoles";
 import { DashboardPreview } from "../components/sections/DashboardPreview";
 import { ForFarmers } from "../components/sections/ForFarmers";
 import { ForDrivers } from "../components/sections/ForDrivers";
-import { ForBuyers } from "../components/sections/ForBuyers";
 import { Pricing } from "../components/sections/Pricing";
 import { CTASection } from "../components/sections/CTASection";
 
@@ -19,7 +18,6 @@ export function LandingPage() {
         <HowItWorks />
         <ForFarmers />
         <ForDrivers />
-        <ForBuyers />
         <UserRoles />
         <DashboardPreview />
         <Pricing />

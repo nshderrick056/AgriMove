@@ -1,7 +1,7 @@
 import { CheckCircle, Bell, AlertCircle } from "lucide-react";
 import type { Notification } from "../../data/mockData";
 
-export function NotifBanner({ n }: { n: Notification }) {
+export function NotifBanner({ n, onRead }: { n: Notification; onRead?: () => void }) {
   const styles = {
     success: "bg-[#e8f5e9] border-l-[3px] border-[#2e7d32] text-[#1b5e20]",
     warning: "bg-[#FEFF9F] border-l-[3px] border-[#d4ac00] text-[#5a4a00]",
@@ -19,6 +19,15 @@ export function NotifBanner({ n }: { n: Notification }) {
       <span className="mt-0.5 flex-shrink-0">{icons[n.type]}</span>
       <span className="flex-1">{n.msg}</span>
       <span className="text-[10px] opacity-70 whitespace-nowrap">{n.time}</span>
+      {onRead && (
+        <button
+          onClick={onRead}
+          className="ml-1 opacity-50 hover:opacity-100 transition-opacity flex-shrink-0"
+          aria-label="Mark as read"
+        >
+          <CheckCircle size={12} />
+        </button>
+      )}
     </div>
   );
 }
