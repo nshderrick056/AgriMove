@@ -641,6 +641,10 @@ function DriverPendingApprovalScreen({
               <span>Account Registration Submitted</span>
             </div>
             <div className="flex items-start gap-2">
+              <span className="text-[#72BF78] font-bold mt-0.5">✓</span>
+              <span>Email Address Verified</span>
+            </div>
+            <div className="flex items-start gap-2">
               <span className="text-amber-500 font-bold mt-0.5">⏳</span>
               <span>Admin Verification & Credential Review (In Progress)</span>
             </div>

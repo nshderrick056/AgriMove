@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Truck, Eye, EyeOff, ChevronRight } from "lucide-react";
 import { Btn } from "../components/ui/Btn";
 import { Input } from "../components/ui/Input";
 import { useApp } from "../context/AppContext";
-import type { LoginTab, Page } from "../data/mockData";
+import type { LoginTab } from "../data/mockData";
 
 export function LoginPage() {
   const { setPage, loginTab, login } = useApp();
@@ -28,6 +28,35 @@ export function LoginPage() {
   const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const hash = window.location.hash;
+    if (hash.includes("verify-email")) {
+      const match = hash.match(/token=([^&]+)/);
+      const token = match ? match[1] : null;
+      if (token) {
+        setLoading(true);
+        fetch("http://localhost:5000/api/auth/verify-email", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ token }),
+        })
+          .then((res) => res.json())
+          .then((data) => {
+            if (data.error) {
+              setErrorMsg(data.error);
+            } else {
+              setSuccessMsg(data.message || "Email address verified successfully! You can now log in.");
+            }
+          })
+          .catch(() => setErrorMsg("Failed to verify email address."))
+          .finally(() => {
+            setLoading(false);
+            window.location.hash = "";
+          });
+      }
+    }
+  }, []);
 
   const handleForgotPassword = async () => {
     if (!email.trim()) {
@@ -58,11 +87,12 @@ export function LoginPage() {
   };
 
   const handleResetPassword = async () => {
-    if (!newPassword || newPassword.length < 6) {
+    const cleanPass = newPassword.trim();
+    if (!cleanPass || cleanPass.length < 6) {
       setErrorMsg("Password must be at least 6 characters long.");
       return;
     }
-    if (newPassword !== confirmPassword) {
+    if (cleanPass !== confirmPassword.trim()) {
       setErrorMsg("Passwords do not match.");
       return;
     }
@@ -74,14 +104,15 @@ export function LoginPage() {
       const res = await fetch("http://localhost:5000/api/auth/reset-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token: resetToken, newPassword }),
+        body: JSON.stringify({ token: resetToken, newPassword: cleanPass }),
       });
       const data = await res.json();
       if (!res.ok) {
         setErrorMsg(data.error || "Failed to reset password.");
       } else {
-        setSuccessMsg("Password reset successfully! You can now log in.");
+        setSuccessMsg("Password updated successfully! Enter your new password below to log in.");
         setResetToken(null);
+        setPassword("");
         window.location.hash = "";
       }
     } catch {
@@ -116,8 +147,16 @@ export function LoginPage() {
         return;
       }
 
-      // Success — use context login() to store token + user and auto-route
-      login(data.token, data.user);
+      if (tab === "signup" || data.requiresVerification) {
+        setSuccessMsg(data.message || "Account registered successfully! A confirmation link has been sent to your email. Please verify your email before logging in.");
+        setTab("login");
+        setPassword("");
+        setFullName("");
+        setPhone("");
+      } else {
+        // Login success — use context login() to store token + user and auto-route
+        login(data.token, data.user);
+      }
 
     } catch (err) {
       setErrorMsg("Network error. Is the backend running?");

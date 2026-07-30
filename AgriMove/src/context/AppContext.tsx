@@ -29,8 +29,8 @@ const AppContext = createContext<AppContextType | null>(null);
 
 // ── Helper ────────────────────────────────────────────────────────────────────
 function getInitialPage(u: AuthUser | null): Page {
-  // If the URL contains a password reset token, always go to login page
-  if (window.location.hash.includes("reset-password")) return "login";
+  // If the URL contains a password reset or email verification token, always go to login page
+  if (window.location.hash.includes("reset-password") || window.location.hash.includes("verify-email")) return "login";
   if (!u) return "landing";
   const rolePageMap: Record<string, Page> = {
     FARMER: "farmer",
