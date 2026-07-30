@@ -40,6 +40,7 @@ export interface DriverJob {
   eta: string | null;
   totalCost: number | null;
   currency: string;
+  proofImageUrl?: string | null;
   farmerId: string;
   farmer: { fullName: string; region: string | null; phone?: string | null } | null;
   buyer?: { fullName: string } | null;
@@ -136,6 +137,27 @@ export const driverApi = {
       method: 'PATCH',
       body: JSON.stringify({ status }),
     });
+  },
+
+  async uploadProofImage(id: string, file: File): Promise<{ message: string; delivery: DriverJob; proofImageUrl: string }> {
+    const token = localStorage.getItem('agrimove_token');
+    const formData = new FormData();
+    formData.append('proofImage', file);
+
+    const res = await fetch(`${BASE_URL}/driver/active/${id}/proof`, {
+      method: 'POST',
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: formData,
+    });
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(body?.error ?? 'Proof upload failed');
+    }
+
+    return res.json();
   },
 
   getEarnings(period: 'weekly' | 'monthly' = 'weekly'): Promise<EarningsData> {

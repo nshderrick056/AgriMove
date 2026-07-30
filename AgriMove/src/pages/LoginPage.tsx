@@ -9,6 +9,16 @@ export function LoginPage() {
   const { setPage, loginTab, login } = useApp();
   const [tab, setTab] = useState<LoginTab>(loginTab);
   const [showForgot, setShowForgot] = useState(false);
+  const [resetToken, setResetToken] = useState<string | null>(() => {
+    const hash = window.location.hash;
+    if (hash.includes("reset-password")) {
+      const match = hash.match(/token=([^&]+)/);
+      return match ? match[1] : null;
+    }
+    return null;
+  });
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [showPass, setShowPass] = useState(false);
   const [role, setRole] = useState("Farmer");
   const [email, setEmail] = useState("");
@@ -16,10 +26,74 @@ export function LoginPage() {
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
+  const [successMsg, setSuccessMsg] = useState("");
   const [loading, setLoading] = useState(false);
+
+  const handleForgotPassword = async () => {
+    if (!email.trim()) {
+      setErrorMsg("Please enter your registered email address.");
+      return;
+    }
+    setErrorMsg("");
+    setSuccessMsg("");
+    setLoading(true);
+
+    try {
+      const res = await fetch("http://localhost:5000/api/auth/forgot-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setErrorMsg(data.error || "Failed to request password reset.");
+      } else {
+        setSuccessMsg(data.message || "A password reset link has been sent to your email.");
+      }
+    } catch {
+      setErrorMsg("Network error. Is the backend running?");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResetPassword = async () => {
+    if (!newPassword || newPassword.length < 6) {
+      setErrorMsg("Password must be at least 6 characters long.");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setErrorMsg("Passwords do not match.");
+      return;
+    }
+    setErrorMsg("");
+    setSuccessMsg("");
+    setLoading(true);
+
+    try {
+      const res = await fetch("http://localhost:5000/api/auth/reset-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: resetToken, newPassword }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setErrorMsg(data.error || "Failed to reset password.");
+      } else {
+        setSuccessMsg("Password reset successfully! You can now log in.");
+        setResetToken(null);
+        window.location.hash = "";
+      }
+    } catch {
+      setErrorMsg("Network error. Is the backend running?");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSubmit = async () => {
     setErrorMsg("");
+    setSuccessMsg("");
     setLoading(true);
 
     try {
@@ -68,31 +142,48 @@ export function LoginPage() {
           className="bg-white rounded-2xl p-6 border border-[#D3EE98]/50"
           style={{ boxShadow: "0 8px 32px rgba(0,0,0,0.08)" }}
         >
-          {showForgot ? (
+          {resetToken ? (
+            <div className="space-y-4">
+              <h3 className="text-lg font-medium text-[#333]">Set new password</h3>
+              <p className="text-sm text-[#666]">Please enter your new password below.</p>
+              {errorMsg && <div className="text-xs text-red-600 bg-red-50 p-2 rounded">{errorMsg}</div>}
+              {successMsg && <div className="text-xs text-green-700 bg-green-50 p-2 rounded">{successMsg}</div>}
+              <Input
+                label="New password"
+                type="password"
+                placeholder="••••••••"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+              />
+              <Input
+                label="Confirm new password"
+                type="password"
+                placeholder="••••••••"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+              />
+              <Btn variant="primary" fullWidth onClick={handleResetPassword} disabled={loading}>
+                {loading ? "Updating..." : "Reset password"}
+              </Btn>
+            </div>
+          ) : showForgot ? (
             <div className="space-y-4">
               <h3 className="text-lg font-medium text-[#333]">Reset your password</h3>
               <p className="text-sm text-[#666]">Enter your email address and we'll send you a link to reset your password.</p>
               {errorMsg && <div className="text-xs text-red-600 bg-red-50 p-2 rounded">{errorMsg}</div>}
+              {successMsg && <div className="text-xs text-green-700 bg-green-50 p-2 rounded">{successMsg}</div>}
               <Input 
                 label="Email address" 
                 placeholder="jean@example.com" 
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
               />
-              <Btn variant="primary" fullWidth onClick={async () => {
-                setErrorMsg("");
-                setLoading(true);
-                // Replace with actual API call later
-                setTimeout(() => { 
-                  setLoading(false); 
-                  setErrorMsg("If an account exists, a reset link was sent!"); 
-                }, 1000);
-              }} disabled={loading}>
+              <Btn variant="primary" fullWidth onClick={handleForgotPassword} disabled={loading}>
                 {loading ? "Please wait..." : "Send reset link"}
               </Btn>
               <button
                 type="button"
-                onClick={() => { setShowForgot(false); setErrorMsg(""); }}
+                onClick={() => { setShowForgot(false); setErrorMsg(""); setSuccessMsg(""); }}
                 className="w-full text-center text-sm text-[#72BF78] hover:underline mt-2"
               >
                 Back to login

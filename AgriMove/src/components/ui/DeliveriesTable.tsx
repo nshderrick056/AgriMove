@@ -66,7 +66,17 @@ export function DeliveriesTable({
               </div>
 
               {showActions && (
-                <div className="flex items-center gap-2 pt-1">
+                <div className="flex items-center gap-2 pt-1 flex-wrap">
+                  {row.proofImageUrl && (
+                    <a
+                      href={row.proofImageUrl.startsWith('/') ? `http://localhost:5000${row.proofImageUrl}` : row.proofImageUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-[11px] font-medium text-[#3a7a3e] bg-[#edfae0] px-2.5 py-1 rounded-md hover:bg-[#d8f5c0] transition-colors"
+                    >
+                      📷 View Proof
+                    </a>
+                  )}
                   <Btn variant="ghost" className="flex-1 text-xs py-1.5" onClick={() => onView?.(row)}>
                     View details
                   </Btn>
@@ -123,7 +133,17 @@ export function DeliveriesTable({
                 ))}
                 {showActions && (
                   <td className="px-3 py-2.5 whitespace-nowrap">
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1.5">
+                      {row.proofImageUrl && (
+                        <a
+                          href={row.proofImageUrl.startsWith('/') ? `http://localhost:5000${row.proofImageUrl}` : row.proofImageUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-[11px] font-medium text-[#3a7a3e] bg-[#edfae0] px-2 py-0.5 rounded hover:bg-[#d8f5c0] transition-colors"
+                        >
+                          📷 Proof
+                        </a>
+                      )}
                       <Btn
                         variant="ghost"
                         className="text-xs py-1 px-2.5"

@@ -253,6 +253,27 @@ function DriveModeView({
     return () => navigator.geolocation.clearWatch(watchId);
   }, []);
 
+  const [proofFile, setProofFile] = useState<File | null>(null);
+  const [proofPreview, setProofPreview] = useState<string | null>(activeJob?.proofImageUrl || null);
+  const [uploadingProof, setUploadingProof] = useState(false);
+
+  const handleProofChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !activeJob) return;
+    setProofFile(file);
+    setProofPreview(URL.createObjectURL(file));
+
+    setUploadingProof(true);
+    try {
+      const res = await driverApi.uploadProofImage(activeJob.id, file);
+      setProofPreview(res.proofImageUrl);
+    } catch (err) {
+      alert("Failed to upload proof image: " + (err as Error).message);
+    } finally {
+      setUploadingProof(false);
+    }
+  };
+
   async function handleStatusChange(nextStatus: "EN_ROUTE" | "DELIVERED") {
     if (!activeJob) return;
     setLoadingAction(nextStatus);
@@ -321,19 +342,36 @@ function DriveModeView({
         )}
       </div>
 
-      {/* Compact Bottom Action Bar — pinned to bottom without huge empty zone */}
+      {/* Compact Bottom Action Bar */}
       <div className="bg-[#2a5c2e] px-4 py-3 shrink-0 border-t border-[#D3EE98]/20 shadow-lg">
         {activeJob ? (
-          <div className="max-w-2xl mx-auto space-y-2">
-            <div className="flex items-center justify-between text-xs text-white/90 px-1">
+          <div className="max-w-2xl mx-auto space-y-2.5">
+            <div className="flex items-center justify-between text-xs text-white/90 px-1 flex-wrap gap-2">
               <span className="font-mono font-medium">{activeJob.id} · {activeJob.cargo} ({activeJob.weightKg} kg)</span>
               <span className="truncate max-w-[220px]">From: {activeJob.pickup} → To: {activeJob.destination}</span>
             </div>
+
+            {/* Proof Upload Area */}
+            <div className="flex items-center justify-between bg-[#1b431e] p-2 rounded-xl border border-[#D3EE98]/30 text-xs text-white">
+              <div className="flex items-center gap-2">
+                {proofPreview ? (
+                  <img src={proofPreview.startsWith('/') ? `http://localhost:5000${proofPreview}` : proofPreview} alt="Proof" className="w-9 h-9 object-cover rounded-lg border border-[#72BF78]" />
+                ) : (
+                  <div className="w-9 h-9 bg-white/10 rounded-lg flex items-center justify-center text-white/70">📷</div>
+                )}
+                <span>{proofPreview ? "Delivery Proof Attached ✓" : "Attach Delivery Photo Proof"}</span>
+              </div>
+              <label className="cursor-pointer bg-[#72BF78] hover:bg-[#5fa865] text-white px-3 py-1.5 rounded-lg font-medium text-xs flex items-center gap-1">
+                {uploadingProof ? <Loader2 size={12} className="animate-spin" /> : "Upload Photo"}
+                <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleProofChange} disabled={uploadingProof} />
+              </label>
+            </div>
+
             <div className="grid grid-cols-2 gap-3">
               <button
                 disabled={activeJob.status !== "ASSIGNED" || loadingAction != null}
                 onClick={() => handleStatusChange("EN_ROUTE")}
-                className="bg-[#A0D683] text-[#2a5c2e] rounded-xl font-medium text-base py-3.5 hover:bg-[#90c878] transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-sm"
+                className="bg-[#A0D683] text-[#2a5c2e] rounded-xl font-medium text-base py-3 hover:bg-[#90c878] transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-sm"
               >
                 {loadingAction === "EN_ROUTE" && <Loader2 size={16} className="animate-spin" />}
                 Mark as picked up
@@ -341,7 +379,7 @@ function DriveModeView({
               <button
                 disabled={activeJob.status !== "EN_ROUTE" || loadingAction != null}
                 onClick={() => handleStatusChange("DELIVERED")}
-                className="bg-[#FEFF9F] text-[#3a7a3e] rounded-xl font-medium text-base py-3.5 hover:bg-[#eef088] transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-sm"
+                className="bg-[#FEFF9F] text-[#3a7a3e] rounded-xl font-medium text-base py-3 hover:bg-[#eef088] transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-sm"
               >
                 {loadingAction === "DELIVERED" && <Loader2 size={16} className="animate-spin" />}
                 Mark as delivered

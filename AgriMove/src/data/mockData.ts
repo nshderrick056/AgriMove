@@ -12,6 +12,7 @@ export interface Delivery {
   destination: string;
   driver: string;
   status: DeliveryStatus;
+  proofImageUrl?: string | null;
 }
 
 export interface HistoryDelivery extends Delivery {
